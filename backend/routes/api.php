@@ -9,3 +9,4 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/v1/health', HealthController::class);
+Route::get('/v1/health/ready', [HealthController::class, 'ready']);
