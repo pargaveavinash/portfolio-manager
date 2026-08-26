@@ -57,3 +57,58 @@ Authorization: Bearer {{login.response.body.$.data.token}}
 ### Logout
 POST {{apiUrl}}/auth/logout
 Authorization: Bearer {{login.response.body.$.data.token}}
+
+
+### ========================================
+### PORTFOLIOS
+### ========================================
+
+### Create Portfolio
+POST {{apiUrl}}/portfolios
+Authorization: Bearer {{login.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+    "name": "My Long Term Portfolio",
+    "description": "Long term wealth creation",
+    "base_currency": "INR"
+}
+
+### ========================================
+### PORTFOLIOS - UPDATE
+### ========================================
+
+### Update Portfolio
+PATCH {{apiUrl}}/portfolios/1
+Authorization: Bearer {{login.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+    "name": "Retirement Portfolio"
+}
+
+### ========================================
+### PORTFOLIOS - DELETE
+### ========================================
+
+### Delete Portfolio
+DELETE {{apiUrl}}/portfolios/1
+Authorization: Bearer {{login.response.body.$.data.token}}
+
+### ========================================
+### HOLDINGS
+### ========================================
+
+### Create Stock Holding
+POST {{apiUrl}}/portfolios/1/holdings
+Authorization: Bearer {{login.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+    "symbol": "RELIANCE",
+    "name": "Reliance Industries",
+    "asset_type": "stock",
+    "quantity": 10,
+    "average_price": 1450,
+    "currency": "INR"
+}
