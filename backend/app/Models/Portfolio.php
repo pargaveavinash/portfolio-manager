@@ -23,4 +23,9 @@ class Portfolio extends Model
     {
         return $this->hasMany(Holding::class);
     }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
 }

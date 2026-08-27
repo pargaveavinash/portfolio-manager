@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PortfolioController;
 use App\Http\Controllers\Api\V1\HoldingController;
+use App\Http\Controllers\Api\V1\TransactionController;
 use App\Http\Controllers\Api\V1\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +39,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete(
         '/v1/portfolios/{portfolio}/holdings/{holding}',
         [HoldingController::class, 'destroy']
+    );
+
+    Route::post(
+        '/v1/portfolios/{portfolio}/holdings/{holding}/transactions',
+        [TransactionController::class, 'store']
+    );
+    Route::get(
+        '/v1/portfolios/{portfolio}/transactions',
+        [TransactionController::class, 'index']
+    );
+
+    Route::get(
+        '/v1/portfolios/{portfolio}/transactions/{transaction}',
+        [TransactionController::class, 'show']
+    );
+
+    Route::put(
+        '/v1/portfolios/{portfolio}/transactions/{transaction}',
+        [TransactionController::class, 'update']
+    );
+
+    Route::delete(
+        '/v1/portfolios/{portfolio}/transactions/{transaction}',
+        [TransactionController::class, 'destroy']
     );
 });
 

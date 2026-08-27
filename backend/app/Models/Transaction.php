@@ -6,33 +6,33 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'symbol',
-    'name',
-    'asset_type',
+    'portfolio_id',
+    'holding_id',
+    'type',
     'quantity',
-    'average_price',
+    'price',
     'currency',
+    'transaction_date',
 ])]
 #[Hidden([
     'portfolio_id',
+    'holding_id',
     'deleted_at',
 ])]
-class Holding extends Model
+class Transaction extends Model
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes;
 
     public function portfolio(): BelongsTo
     {
         return $this->belongsTo(Portfolio::class);
     }
 
-    public function transactions(): HasMany
+    public function holding(): BelongsTo
     {
-        return $this->hasMany(Transaction::class);
+        return $this->belongsTo(Holding::class);
     }
 }
