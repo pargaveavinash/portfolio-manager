@@ -35,4 +35,56 @@ class Holding extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function currentQuantity(): float
+    {
+        return (float) $this->transactions()
+            ->get()
+            ->sum(function (Transaction $transaction): float {
+                return $transaction->type === 'BUY'
+                    ? (float) $transaction->quantity
+                    : -(float) $transaction->quantity;
+            });
+    }
+
+    public function currentAveragePrice(): float
+    {
+        $quantity  = 0.0;
+        $costBasis = 0.0;
+
+        $transactions = $this->transactions()
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($transactions as $transaction) {
+            $transactionQuantity = (float) $transaction->quantity;
+            $transactionPrice    = (float) $transaction->price;
+
+            if ($transaction->type === 'BUY') {
+                $costBasis += $transactionQuantity * $transactionPrice;
+                $quantity  += $transactionQuantity;
+
+                continue;
+            }
+
+            if ($transaction->type === 'SELL') {
+                if ($quantity <= 0) {
+                    continue;
+                }
+
+                $averageCost = $costBasis / $quantity;
+
+                $costBasis -= $transactionQuantity * $averageCost;
+                $quantity  -= $transactionQuantity;
+            }
+        }
+
+        if ($quantity <= 0) {
+            return 0.0;
+        }
+
+        return $costBasis / $quantity;
+    }
+
 }

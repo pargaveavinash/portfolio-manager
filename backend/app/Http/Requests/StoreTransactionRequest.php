@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreTransactionRequest extends FormRequest
 {
@@ -15,24 +16,24 @@ class StoreTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => [
+            'type'             => [
                 'required',
                 Rule::in(['BUY', 'SELL']),
             ],
 
-            'quantity' => [
+            'quantity'         => [
                 'required',
                 'numeric',
                 'gt:0',
             ],
 
-            'price' => [
+            'price'            => [
                 'required',
                 'numeric',
                 'gte:0',
             ],
 
-            'currency' => [
+            'currency'         => [
                 'required',
                 'string',
                 'size:3',
@@ -43,5 +44,31 @@ class StoreTransactionRequest extends FormRequest
                 'date',
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($this->input('type') !== 'SELL') {
+                return;
+            }
+
+            $holding = $this->route('holding');
+
+            if (!$holding) {
+                return;
+            }
+
+            if ((float) $this->input('quantity') > $holding->currentQuantity()) {
+                $validator->errors()->add(
+                    'quantity',
+                    'The sell quantity cannot exceed the current holding quantity.'
+                );
+            }
+        });
     }
 }

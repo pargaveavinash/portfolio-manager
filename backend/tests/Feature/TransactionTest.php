@@ -438,4 +438,98 @@ class TransactionTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_user_cannot_sell_more_than_current_holding_quantity(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 10,
+            'average_price' => 1450,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 1450,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(
+                "/api/v1/portfolios/{$portfolio->id}/holdings/{$holding->id}/transactions",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 11,
+                    'price'            => 1600,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response->assertUnprocessable();
+
+        $response->assertJsonValidationErrors('quantity');
+    }
+
+    public function test_user_can_sell_up_to_current_holding_quantity(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 10,
+            'average_price' => 1450,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 1450,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(
+                "/api/v1/portfolios/{$portfolio->id}/holdings/{$holding->id}/transactions",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 10,
+                    'price'            => 1600,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response->assertCreated();
+
+        $response->assertJsonPath(
+            'data.transaction.type',
+            'SELL'
+        );
+
+        $response->assertJsonPath(
+            'data.transaction.quantity',
+            10
+        );
+    }
 }
