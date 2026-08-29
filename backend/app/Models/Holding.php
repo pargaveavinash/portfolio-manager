@@ -109,13 +109,53 @@ class Holding extends Model
     }
 
     public function unrealizedProfitLossPercentage(): float
-{
-    $investedCost = $this->currentInvestedCost();
+    {
+        $investedCost = $this->currentInvestedCost();
 
-    if ($investedCost <= 0) {
-        return 0.0;
+        if ($investedCost <= 0) {
+            return 0.0;
+        }
+
+        return ($this->unrealizedProfitLoss() / $investedCost) * 100;
     }
 
-    return ($this->unrealizedProfitLoss() / $investedCost) * 100;
-}
+    public function realizedProfitLoss(): float
+    {
+        $quantity           = 0.0;
+        $costBasis          = 0.0;
+        $realizedProfitLoss = 0.0;
+
+        $transactions = $this->transactions()
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($transactions as $transaction) {
+            $transactionQuantity = (float) $transaction->quantity;
+            $transactionPrice    = (float) $transaction->price;
+
+            if ($transaction->type === 'BUY') {
+                $quantity  += $transactionQuantity;
+                $costBasis += $transactionQuantity * $transactionPrice;
+
+                continue;
+            }
+
+            if ($transaction->type === 'SELL') {
+                if ($quantity <= 0 || $transactionQuantity <= 0) {
+                    continue;
+                }
+
+                $averageCost = $costBasis / $quantity;
+
+                $realizedProfitLoss +=
+                    $transactionQuantity * ($transactionPrice - $averageCost);
+
+                $costBasis -= $transactionQuantity * $averageCost;
+                $quantity  -= $transactionQuantity;
+            }
+        }
+
+        return $realizedProfitLoss;
+    }
 }
