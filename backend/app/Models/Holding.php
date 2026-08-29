@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'asset_type',
     'quantity',
     'average_price',
+    'market_price',
     'currency',
 ])]
 #[Hidden([
@@ -87,4 +88,34 @@ class Holding extends Model
         return $costBasis / $quantity;
     }
 
+    public function currentInvestedCost(): float
+    {
+        return $this->currentQuantity() * $this->currentAveragePrice();
+    }
+
+    public function currentMarketPrice(): float
+    {
+        return (float) $this->market_price;
+    }
+
+    public function currentMarketValue(): float
+    {
+        return $this->currentQuantity() * $this->currentMarketPrice();
+    }
+
+    public function unrealizedProfitLoss(): float
+    {
+        return $this->currentMarketValue() - $this->currentInvestedCost();
+    }
+
+    public function unrealizedProfitLossPercentage(): float
+{
+    $investedCost = $this->currentInvestedCost();
+
+    if ($investedCost <= 0) {
+        return 0.0;
+    }
+
+    return ($this->unrealizedProfitLoss() / $investedCost) * 100;
+}
 }
