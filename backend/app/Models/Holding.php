@@ -158,4 +158,51 @@ class Holding extends Model
 
         return $realizedProfitLoss;
     }
+
+    public function realizedProfitLossPercentage(): float
+    {
+        $quantity           = 0.0;
+        $costBasis          = 0.0;
+        $realizedProfitLoss = 0.0;
+        $realizedCost       = 0.0;
+
+        $transactions = $this->transactions()
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($transactions as $transaction) {
+            $transactionQuantity = (float) $transaction->quantity;
+            $transactionPrice    = (float) $transaction->price;
+
+            if ($transaction->type === 'BUY') {
+                $quantity  += $transactionQuantity;
+                $costBasis += $transactionQuantity * $transactionPrice;
+
+                continue;
+            }
+
+            if ($transaction->type === 'SELL') {
+                if ($quantity <= 0 || $transactionQuantity <= 0) {
+                    continue;
+                }
+
+                $averageCost = $costBasis / $quantity;
+
+                $realizedCost += $transactionQuantity * $averageCost;
+
+                $realizedProfitLoss +=
+                    $transactionQuantity * ($transactionPrice - $averageCost);
+
+                $costBasis -= $transactionQuantity * $averageCost;
+                $quantity  -= $transactionQuantity;
+            }
+        }
+
+        if ($realizedCost <= 0) {
+            return 0.0;
+        }
+
+        return ($realizedProfitLoss / $realizedCost) * 100;
+    }
 }
