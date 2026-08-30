@@ -305,4 +305,79 @@ class PortfolioTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_authenticated_user_can_view_portfolio_performance(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name'          => 'My Portfolio',
+            'description'   => 'My investments',
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'market_price'  => 1600,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 1450,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 2,
+            'price'            => 1550,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->actingAs($user)
+            ->getJson("/api/v1/portfolios/{$portfolio->id}")
+            ->assertOk()
+            ->assertJsonPath(
+                'data.portfolio.current_invested_cost',
+                11600
+            )
+            ->assertJsonPath(
+                'data.portfolio.current_market_value',
+                12800
+            )
+            ->assertJsonPath(
+                'data.portfolio.unrealized_profit_loss',
+                1200
+            )
+            ->assertJsonPath(
+                'data.portfolio.unrealized_profit_loss_percentage',
+                10.344827586206897
+            )
+            ->assertJsonPath(
+                'data.portfolio.realized_profit_loss',
+                200
+            )
+            ->assertJsonPath(
+                'data.portfolio.realized_profit_loss_percentage',
+                1.7241379310344827
+            )
+            ->assertJsonPath(
+                'data.portfolio.total_profit_loss',
+                1400
+            )
+            ->assertJsonPath(
+                'data.portfolio.total_profit_loss_percentage',
+                12.068965517241379
+            );
+    }
 }
