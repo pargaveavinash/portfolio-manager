@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreHoldingRequest;
+use App\Http\Resources\HoldingResource;
 use App\Models\Holding;
 use App\Models\Portfolio;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 
 class HoldingController extends Controller
 {
@@ -55,7 +56,7 @@ class HoldingController extends Controller
 
         return response()->json([
             'data' => [
-                'holding' => $holding,
+                'holding' => new HoldingResource($holding),
             ],
         ]);
     }
