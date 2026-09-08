@@ -532,4 +532,214 @@ class TransactionTest extends TestCase
             10
         );
     }
+
+    public function test_user_can_increase_existing_sell_transaction_within_available_quantity(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name' => 'My Portfolio',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $sell = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 4,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 8,
+                    'price'            => 150,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.transaction.quantity', 8);
+
+        $this->assertSame(
+            2.0,
+            $holding->fresh()->currentQuantity()
+        );
+    }
+
+    public function test_user_cannot_increase_existing_sell_transaction_beyond_available_quantity(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name' => 'My Portfolio',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $sell = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 4,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 11,
+                    'price'            => 150,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['quantity']);
+    }
+
+    public function test_user_cannot_change_buy_transaction_to_sell_beyond_available_quantity(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name' => 'My Portfolio',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $buy = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$buy->id}",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 11,
+                    'price'            => 150,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 10:00:00',
+                ]
+            );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['quantity']);
+    }
+
+    public function test_user_can_change_sell_transaction_to_buy(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name' => 'My Portfolio',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $sell = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 4,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
+                [
+                    'type'             => 'BUY',
+                    'quantity'         => 4,
+                    'price'            => 150,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.transaction.type', 'BUY')
+            ->assertJsonPath('data.transaction.quantity', 4);
+
+        $this->assertSame(
+            14.0,
+            $holding->fresh()->currentQuantity()
+        );
+    }
 }

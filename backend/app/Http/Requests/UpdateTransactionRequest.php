@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateTransactionRequest extends FormRequest
 {
@@ -39,5 +40,43 @@ class UpdateTransactionRequest extends FormRequest
                 'date',
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($this->input('type') !== 'SELL') {
+                return;
+            }
+
+            $transaction = $this->route('transaction');
+
+            if (!$transaction) {
+                return;
+            }
+
+            $holding = $transaction->holding;
+
+            if (!$holding) {
+                return;
+            }
+
+            $currentQuantity = $holding->currentQuantity();
+
+            if ($transaction->type === 'SELL') {
+                $currentQuantity += (float) $transaction->quantity;
+            }
+
+            if ((float) $this->input('quantity') > $currentQuantity) {
+                $validator->errors()->add(
+                    'quantity',
+                    'The sell quantity cannot exceed the current holding quantity.'
+                );
+            }
+        });
     }
 }
