@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Holding;
+use App\Models\Portfolio;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -379,5 +381,95 @@ class PortfolioTest extends TestCase
                 'data.portfolio.total_profit_loss_percentage',
                 12.068965517241379
             );
+    }
+
+    public function test_authenticated_user_can_view_portfolio_rebalancing_plan(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name' => 'My Portfolio',
+        ]);
+
+        $portfolio->allocationTargets()->create([
+            'symbol'            => 'NIFTYBEES',
+            'target_percentage' => 60,
+        ]);
+
+        $portfolio->allocationTargets()->create([
+            'symbol'            => 'GOLDBEES',
+            'target_percentage' => 40,
+        ]);
+
+        $niftyBees = $portfolio->holdings()->create([
+            'symbol'        => 'NIFTYBEES',
+            'name'          => 'Nippon India ETF Nifty BeES',
+            'asset_type'    => 'ETF',
+            'quantity'      => 10,
+            'average_price' => 5000,
+            'currency'      => 'INR',
+            'market_price'  => 5000,
+        ]);
+
+        $goldBees = $portfolio->holdings()->create([
+            'symbol'        => 'GOLDBEES',
+            'name'          => 'Gold ETF',
+            'asset_type'    => 'ETF',
+            'quantity'      => 10,
+            'average_price' => 5000,
+            'currency'      => 'INR',
+            'market_price'  => 5000,
+        ]);
+
+        $niftyBees->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'holding_id'       => $niftyBees->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 5000,
+            'currency'         => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $goldBees->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'holding_id'       => $goldBees->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 5000,
+            'currency'         => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $this->assertCount(2, $portfolio->holdings()->get());
+        $this->assertSame(
+            2,
+            Holding::where('portfolio_id', $portfolio->id)->count()
+        );
+        $response = $this->actingAs($user)
+            ->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'data' => [
+                    [
+                        'symbol'    => 'NIFTYBEES',
+                        'target'    => 60.0,
+                        'current'   => 50.0,
+                        'deviation' => -10.0,
+                        'action'    => 'BUY',
+                        'amount'    => 10000.0,
+                    ],
+                    [
+                        'symbol'    => 'GOLDBEES',
+                        'target'    => 40.0,
+                        'current'   => 50.0,
+                        'deviation' => 10.0,
+                        'action'    => 'SELL',
+                        'amount'    => 10000.0,
+                    ],
+                ],
+            ]);
     }
 }
