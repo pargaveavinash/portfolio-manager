@@ -205,4 +205,42 @@ class Holding extends Model
 
         return ($realizedProfitLoss / $realizedCost) * 100;
     }
+
+    public function realizedCost(): float
+    {
+        $quantity     = 0.0;
+        $costBasis    = 0.0;
+        $realizedCost = 0.0;
+
+        $transactions = $this->transactions()
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($transactions as $transaction) {
+            $transactionQuantity = (float) $transaction->quantity;
+            $transactionPrice    = (float) $transaction->price;
+
+            if ($transaction->type === 'BUY') {
+                $quantity  += $transactionQuantity;
+                $costBasis += $transactionQuantity * $transactionPrice;
+                continue;
+            }
+
+            if ($transaction->type === 'SELL') {
+                if ($quantity <= 0 || $transactionQuantity <= 0) {
+                    continue;
+                }
+
+                $averageCost = $costBasis / $quantity;
+
+                $realizedCost += $transactionQuantity * $averageCost;
+
+                $costBasis -= $transactionQuantity * $averageCost;
+                $quantity  -= $transactionQuantity;
+            }
+        }
+
+        return $realizedCost;
+    }
 }

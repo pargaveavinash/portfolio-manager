@@ -260,7 +260,7 @@ class PortfolioPerformanceTest extends TestCase
         ]);
 
         $this->assertSame(
-            1.7241379310344827,
+            6.896551724137931,
             $portfolio->realizedProfitLossPercentage()
         );
     }
@@ -403,7 +403,7 @@ class PortfolioPerformanceTest extends TestCase
         ]);
 
         $this->assertEqualsWithDelta(
-            12.06896551724138,
+            9.655172413793103,
             $portfolio->totalProfitLossPercentage(),
             0.00000000000001
         );
@@ -428,4 +428,159 @@ class PortfolioPerformanceTest extends TestCase
             $portfolio->totalProfitLossPercentage()
         );
     }
+
+    public function test_realized_profit_loss_percentage_is_calculated_when_position_is_fully_sold(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'market_price'  => 150,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 10,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->assertSame(
+            50.0,
+            $portfolio->realizedProfitLossPercentage()
+        );
+    }
+
+    public function test_realized_profit_loss_percentage_uses_realized_cost_for_partial_sales(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'market_price'  => 150,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 4,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->assertSame(
+            50.0,
+            $portfolio->realizedProfitLossPercentage()
+        );
+    }
+
+    public function test_realized_cost_is_calculated_from_sold_units(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'market_price'  => 150,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 4,
+            'price'            => 150,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->assertSame(
+            400.0,
+            $portfolio->realizedCost()
+        );
+    }
+
+    public function test_total_profit_loss_percentage_uses_realized_and_current_cost_basis(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'market_price'  => 1600,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 1450,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 2,
+            'price'            => 1550,
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->assertEqualsWithDelta(
+            9.655172413793103,
+            $portfolio->totalProfitLossPercentage(),
+            0.00000000000001
+        );
+    }
+
+
 }
