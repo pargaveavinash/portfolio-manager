@@ -101,4 +101,11 @@ class PortfolioController extends Controller
             ],
         ]);
     }
+
+    public function rebalancing(Portfolio $portfolio): JsonResponse
+    {
+        return response()->json([
+            'data' => $portfolio->rebalancingPlan(),
+        ]);
+    }
 }

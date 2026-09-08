@@ -64,6 +64,11 @@ Route::middleware('auth:sanctum')->group(function () {
         '/v1/portfolios/{portfolio}/transactions/{transaction}',
         [TransactionController::class, 'destroy']
     );
+
+    Route::get(
+        '/v1/portfolios/{portfolio}/rebalancing',
+        [PortfolioController::class, 'rebalancing']
+    );
 });
 
 Route::get('/v1/health', HealthController::class);
