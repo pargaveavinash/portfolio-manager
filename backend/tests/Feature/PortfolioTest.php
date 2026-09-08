@@ -369,7 +369,7 @@ class PortfolioTest extends TestCase
             )
             ->assertJsonPath(
                 'data.portfolio.realized_profit_loss_percentage',
-                1.7241379310344827
+                6.896551724137931
             )
             ->assertJsonPath(
                 'data.portfolio.total_profit_loss',
@@ -377,7 +377,7 @@ class PortfolioTest extends TestCase
             )
             ->assertJsonPath(
                 'data.portfolio.total_profit_loss_percentage',
-                12.068965517241379
+                9.655172413793103
             );
     }
 }

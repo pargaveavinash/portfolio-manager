@@ -77,13 +77,13 @@ class Portfolio extends Model
 
     public function realizedProfitLossPercentage(): float
     {
-        $investedCost = $this->currentInvestedCost();
+        $realizedCost = $this->realizedCost();
 
-        if ($investedCost <= 0) {
+        if ($realizedCost <= 0) {
             return 0.0;
         }
 
-        return ($this->realizedProfitLoss() / $investedCost) * 100;
+        return ($this->realizedProfitLoss() / $realizedCost) * 100;
     }
 
     public function totalProfitLoss(): float
@@ -94,12 +94,23 @@ class Portfolio extends Model
 
     public function totalProfitLossPercentage(): float
     {
-        $investedCost = $this->currentInvestedCost();
+        $costBasis = $this->realizedCost()
+            + $this->currentInvestedCost();
 
-        if ($investedCost <= 0) {
+        if ($costBasis <= 0) {
             return 0.0;
         }
 
-        return ($this->totalProfitLoss() / $investedCost) * 100;
+        return ($this->totalProfitLoss() / $costBasis) * 100;
+    }
+
+    public function realizedCost(): float
+    {
+        return (float) $this->holdings()
+            ->get()
+            ->sum(
+                fn(Holding $holding): float =>
+                $holding->realizedCost()
+            );
     }
 }
