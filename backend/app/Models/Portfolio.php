@@ -34,6 +34,11 @@ class Portfolio extends Model
         return $this->hasMany(PortfolioAllocation::class);
     }
 
+    public function cashTransactions()
+    {
+        return $this->hasMany(CashTransaction::class);
+    }
+
     public function currentInvestedCost(): float
     {
         return (float) $this->holdings()
@@ -239,5 +244,33 @@ class Portfolio extends Model
             })
             ->values()
             ->all();
+    }
+
+    public function cashBalance(): float
+    {
+        $cashBalance = (float) $this->cashTransactions()
+            ->get()
+            ->sum(function (CashTransaction $transaction): float {
+                return $transaction->type === 'DEPOSIT'
+                    ? (float) $transaction->amount
+                    : -(float) $transaction->amount;
+            });
+
+        $investmentCashFlow = (float) $this->holdings()
+            ->with('transactions')
+            ->get()
+            ->sum(function (Holding $holding): float {
+                return $holding->transactions
+                    ->sum(function (Transaction $transaction): float {
+                        $value = (float) $transaction->quantity
+                            * (float) $transaction->price;
+
+                        return $transaction->type === 'BUY'
+                            ? -$value
+                            : $value;
+                    });
+            });
+
+        return $cashBalance + $investmentCashFlow;
     }
 }
