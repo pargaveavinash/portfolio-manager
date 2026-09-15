@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CashTransactionController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HoldingController;
 use App\Http\Controllers\Api\V1\PortfolioController;
+use App\Http\Controllers\Api\V1\PortfolioSummaryController;
 use App\Http\Controllers\Api\V1\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +70,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get(
         '/v1/portfolios/{portfolio}/rebalancing',
         [PortfolioController::class, 'rebalancing']
+    );
+
+    Route::get(
+        '/v1/portfolios/{portfolio}/summary',
+        [PortfolioSummaryController::class, 'show']
     );
 
     Route::post(
