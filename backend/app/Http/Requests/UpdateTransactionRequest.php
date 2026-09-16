@@ -49,33 +49,60 @@ class UpdateTransactionRequest extends FormRequest
                 return;
             }
 
-            if ($this->input('type') !== 'SELL') {
-                return;
-            }
-
             $transaction = $this->route('transaction');
 
             if (!$transaction) {
                 return;
             }
 
-            $holding = $transaction->holding;
+            if ($this->input('type') === 'SELL') {
+                $holding = $transaction->holding;
 
-            if (!$holding) {
-                return;
+                if (!$holding) {
+                    return;
+                }
+
+                $currentQuantity = $holding->currentQuantity();
+
+                if ($transaction->type === 'SELL') {
+                    $currentQuantity += (float) $transaction->quantity;
+                }
+
+                if ((float) $this->input('quantity') > $currentQuantity) {
+                    $validator->errors()->add(
+                        'quantity',
+                        'The sell quantity cannot exceed the current holding quantity.'
+                    );
+                }
             }
 
-            $currentQuantity = $holding->currentQuantity();
+            $portfolio = $this->route('portfolio');
 
-            if ($transaction->type === 'SELL') {
-                $currentQuantity += (float) $transaction->quantity;
-            }
+            if ($portfolio) {
+                $currentCash = $portfolio->cashBalance();
 
-            if ((float) $this->input('quantity') > $currentQuantity) {
-                $validator->errors()->add(
-                    'quantity',
-                    'The sell quantity cannot exceed the current holding quantity.'
-                );
+                $oldEffect = 0.0;
+                if ($transaction->type === 'BUY') {
+                    $oldEffect = -1 * (float) $transaction->quantity * (float) $transaction->price;
+                } elseif ($transaction->type === 'SELL') {
+                    $oldEffect = (float) $transaction->quantity * (float) $transaction->price;
+                }
+
+                $newEffect = 0.0;
+                if ($this->input('type') === 'BUY') {
+                    $newEffect = -1 * (float) $this->input('quantity') * (float) $this->input('price');
+                } elseif ($this->input('type') === 'SELL') {
+                    $newEffect = (float) $this->input('quantity') * (float) $this->input('price');
+                }
+
+                $cashAfterUpdate = $currentCash - $oldEffect + $newEffect;
+
+                if (round($cashAfterUpdate, 4) < 0) {
+                    $validator->errors()->add(
+                        'quantity',
+                        'Insufficient cash balance to update this transaction.'
+                    );
+                }
             }
         });
     }

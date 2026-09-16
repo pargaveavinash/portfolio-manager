@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreCashTransactionRequest extends FormRequest
 {
@@ -14,6 +15,8 @@ class StoreCashTransactionRequest extends FormRequest
 
     public function rules(): array
     {
+        $portfolio = $this->route('portfolio');
+
         return [
             'type' => [
                 'required',
@@ -30,6 +33,7 @@ class StoreCashTransactionRequest extends FormRequest
                 'required',
                 'string',
                 'size:3',
+                Rule::in([$portfolio ? $portfolio->base_currency : '']),
             ],
 
             'transaction_date' => [
@@ -42,5 +46,31 @@ class StoreCashTransactionRequest extends FormRequest
                 'string',
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($this->input('type') !== 'WITHDRAWAL') {
+                return;
+            }
+
+            $portfolio = $this->route('portfolio');
+
+            if (!$portfolio) {
+                return;
+            }
+
+            if ((float) $this->input('amount') > $portfolio->cashBalance()) {
+                $validator->errors()->add(
+                    'amount',
+                    'The withdrawal amount cannot exceed the current cash balance.'
+                );
+            }
+        });
     }
 }

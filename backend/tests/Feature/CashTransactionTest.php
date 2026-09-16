@@ -17,6 +17,7 @@ class CashTransactionTest extends TestCase
 
         $portfolio = Portfolio::factory()->create([
             'user_id' => $user->id,
+            'base_currency' => 'INR',
         ]);
 
         $response = $this
@@ -52,5 +53,62 @@ class CashTransactionTest extends TestCase
             'amount'       => 100000,
             'currency'     => 'INR',
         ]);
+    }
+
+    public function test_user_cannot_create_cash_transaction_with_wrong_currency(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson(
+                "/api/v1/portfolios/{$portfolio->id}/cash-transactions",
+                [
+                    'type'             => 'DEPOSIT',
+                    'amount'           => 100000,
+                    'currency'         => 'USD',
+                    'transaction_date' => '2026-09-08 10:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('currency');
+    }
+
+    public function test_user_cannot_withdraw_more_than_cash_balance(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 500,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson(
+                "/api/v1/portfolios/{$portfolio->id}/cash-transactions",
+                [
+                    'type'             => 'WITHDRAWAL',
+                    'amount'           => 1000,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-09-08 10:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('amount');
     }
 }
