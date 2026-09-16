@@ -113,14 +113,14 @@ class PortfolioSummaryTest extends TestCase
         // Realized P/L %: (200 / 2900) * 100 = 6.8965517241379
         // Total P/L: 1200 + 200 = 1400
         // Total P/L %: (1400 / (11600 + 2900)) * 100 = (1400 / 14500) * 100 = 9.6551724137931
-        
+
         // Cash Balance Calculation:
         // Cash deposited: 1000
         // Investment Cash Flow:
         // Bought: -14500
         // Sold: +3100
         // Cash Balance = 1000 - 14500 + 3100 = -10400
-        
+
         // Total Portfolio Value:
         // Current Market Value (12800) + Cash Balance (-10400) = 2400
 
@@ -137,7 +137,6 @@ class PortfolioSummaryTest extends TestCase
             ->assertJsonPath('data.summary.realized_profit_loss', 200)
             ->assertJsonPath('data.summary.total_profit_loss', 1400);
 
-            
         // Use approximate assertions for floats or exact if precise
         $this->assertEquals(10.344827586206897, $response->json('data.summary.unrealized_profit_loss_percentage'));
         $this->assertEquals(6.896551724137931, $response->json('data.summary.realized_profit_loss_percentage'));
