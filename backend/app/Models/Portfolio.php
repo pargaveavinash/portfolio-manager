@@ -273,4 +273,9 @@ class Portfolio extends Model
 
         return $cashBalance + $investmentCashFlow;
     }
+
+    public function totalPortfolioValue(): float
+    {
+        return $this->currentMarketValue() + $this->cashBalance();
+    }
 }
