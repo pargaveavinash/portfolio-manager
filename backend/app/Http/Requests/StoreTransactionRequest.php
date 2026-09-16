@@ -53,21 +53,36 @@ class StoreTransactionRequest extends FormRequest
                 return;
             }
 
-            if ($this->input('type') !== 'SELL') {
-                return;
+            if ($this->input('type') === 'SELL') {
+                $holding = $this->route('holding');
+
+                if (!$holding) {
+                    return;
+                }
+
+                if ((float) $this->input('quantity') > $holding->currentQuantity()) {
+                    $validator->errors()->add(
+                        'quantity',
+                        'The sell quantity cannot exceed the current holding quantity.'
+                    );
+                }
             }
 
-            $holding = $this->route('holding');
+            if ($this->input('type') === 'BUY') {
+                $portfolio = $this->route('portfolio');
 
-            if (!$holding) {
-                return;
-            }
+                if (!$portfolio) {
+                    return;
+                }
 
-            if ((float) $this->input('quantity') > $holding->currentQuantity()) {
-                $validator->errors()->add(
-                    'quantity',
-                    'The sell quantity cannot exceed the current holding quantity.'
-                );
+                $buyValue = (float) $this->input('quantity') * (float) $this->input('price');
+
+                if ($buyValue > $portfolio->cashBalance()) {
+                    $validator->errors()->add(
+                        'quantity',
+                        'Insufficient cash balance for this BUY transaction.'
+                    );
+                }
             }
         });
     }

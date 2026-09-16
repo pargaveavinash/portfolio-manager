@@ -29,6 +29,13 @@ class TransactionTest extends TestCase
             'currency'      => 'INR',
         ]);
 
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 100000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
         $response = $this->actingAs($user)
             ->postJson(
                 "/api/v1/portfolios/{$portfolio->id}/holdings/{$holding->id}/transactions",
@@ -83,6 +90,13 @@ class TransactionTest extends TestCase
             'quantity'      => 10,
             'average_price' => 1450,
             'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 100000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
         ]);
 
         $response = $this->actingAs($user)
@@ -294,6 +308,13 @@ class TransactionTest extends TestCase
             'transaction_date' => '2026-08-27 10:00:00',
         ]);
 
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 100000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
         $response = $this->actingAs($user)
             ->putJson(
                 "/api/v1/portfolios/{$portfolio->id}/transactions/{$transaction->id}",
@@ -344,6 +365,13 @@ class TransactionTest extends TestCase
             'price'            => 1500,
             'currency'         => 'INR',
             'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 100000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
         ]);
 
         $response = $this->actingAs($user)
@@ -720,6 +748,13 @@ class TransactionTest extends TestCase
             'transaction_date' => '2026-08-27 11:00:00',
         ]);
 
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 100000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
         $response = $this->actingAs($user)
             ->putJson(
                 "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
@@ -741,5 +776,276 @@ class TransactionTest extends TestCase
             14.0,
             $holding->fresh()->currentQuantity()
         );
+    }
+
+    public function test_user_cannot_buy_with_insufficient_cash(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(
+                "/api/v1/portfolios/{$portfolio->id}/holdings/{$holding->id}/transactions",
+                [
+                    'type'             => 'BUY',
+                    'quantity'         => 10,
+                    'price'            => 150, // Total 1500 > 1000
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 10:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('quantity');
+    }
+
+    public function test_user_cannot_update_buy_to_exceed_available_cash(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $transaction = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 5,
+            'price'            => 100, // Cost 500. Remaining cash: 500
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$transaction->id}",
+                [
+                    'type'             => 'BUY',
+                    'quantity'         => 10,
+                    'price'            => 150, // New cost 1500. Old cost 500. Required: 1500. Available: 500 + 500 = 1000. Fails.
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 12:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('quantity');
+    }
+
+    public function test_user_cannot_decrease_sell_to_cause_negative_cash(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 10,
+            'average_price' => 100,
+            'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $buy = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100, // Cost 1000. Cash is now 0.
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $sell = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 5,
+            'price'            => 200, // Proceeds 1000. Cash is now 1000.
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        // Withdraw 1000. Cash is now 0.
+        $portfolio->cashTransactions()->create([
+            'type' => 'WITHDRAWAL',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => '2026-08-27 12:00:00',
+        ]);
+
+        // Attempt to decrease SELL proceeds to 500. Cash would become -500.
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
+                [
+                    'type'             => 'SELL',
+                    'quantity'         => 5,
+                    'price'            => 100, // New proceeds 500.
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('quantity'); // Or a general cash error, but quantity is used.
+    }
+
+    public function test_user_cannot_change_sell_to_buy_to_cause_negative_cash(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 10,
+            'average_price' => 100,
+            'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $buy = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100, // Cost 1000. Cash is now 0.
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        $sell = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'SELL',
+            'quantity'         => 5,
+            'price'            => 200, // Proceeds 1000. Cash is now 1000.
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 11:00:00',
+        ]);
+
+        // Attempt to change SELL to BUY for 1000.
+        // Reversing SELL removes 1000 cash. New BUY costs 1000. Total needed: 2000.
+        // But current cash is only 1000. So cash would become -1000.
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$sell->id}",
+                [
+                    'type'             => 'BUY',
+                    'quantity'         => 5,
+                    'price'            => 200,
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 11:00:00',
+                ]
+            );
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('quantity');
+    }
+
+    public function test_user_can_update_transaction_to_exactly_zero_cash(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = Portfolio::factory()->create([
+            'user_id' => $user->id,
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'RELIANCE',
+            'name'          => 'Reliance Industries',
+            'asset_type'    => 'stock',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $portfolio->cashTransactions()->create([
+            'type' => 'DEPOSIT',
+            'amount' => 1000,
+            'currency' => 'INR',
+            'transaction_date' => now(),
+        ]);
+
+        $transaction = $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 5,
+            'price'            => 100, // Cost 500. Cash is now 500.
+            'currency'         => 'INR',
+            'transaction_date' => '2026-08-27 10:00:00',
+        ]);
+
+        // Update BUY to cost exactly 1000, leaving exactly 0 cash.
+        $response = $this->actingAs($user)
+            ->putJson(
+                "/api/v1/portfolios/{$portfolio->id}/transactions/{$transaction->id}",
+                [
+                    'type'             => 'BUY',
+                    'quantity'         => 10,
+                    'price'            => 100, // New cost 1000.
+                    'currency'         => 'INR',
+                    'transaction_date' => '2026-08-27 12:00:00',
+                ]
+            );
+
+        $response->assertOk();
     }
 }
