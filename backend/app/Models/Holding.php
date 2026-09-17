@@ -39,8 +39,7 @@ class Holding extends Model
 
     public function currentQuantity(): float
     {
-        return (float) $this->transactions()
-            ->get()
+        return (float) $this->transactions
             ->sum(function (Transaction $transaction): float {
                 return $transaction->type === 'BUY'
                     ? (float) $transaction->quantity
@@ -53,10 +52,10 @@ class Holding extends Model
         $quantity  = 0.0;
         $costBasis = 0.0;
 
-        $transactions = $this->transactions()
-            ->orderBy('transaction_date')
-            ->orderBy('id')
-            ->get();
+        $transactions = $this->transactions->sortBy([
+            ['transaction_date', 'asc'],
+            ['id', 'asc'],
+        ]);
 
         foreach ($transactions as $transaction) {
             $transactionQuantity = (float) $transaction->quantity;
@@ -142,7 +141,7 @@ class Holding extends Model
 
             // Calculate exact quantity string to avoid float precision loss during aggregation
             $quantityStr = '0';
-            foreach ($this->transactions()->get() as $transaction) {
+            foreach ($this->transactions as $transaction) {
                 $quantityStr = $transaction->type === 'BUY'
                     ? bcadd($quantityStr, (string) $transaction->quantity, 6)
                     : bcsub($quantityStr, (string) $transaction->quantity, 6);
@@ -180,10 +179,10 @@ class Holding extends Model
         $costBasis          = 0.0;
         $realizedProfitLoss = 0.0;
 
-        $transactions = $this->transactions()
-            ->orderBy('transaction_date')
-            ->orderBy('id')
-            ->get();
+        $transactions = $this->transactions->sortBy([
+            ['transaction_date', 'asc'],
+            ['id', 'asc'],
+        ]);
 
         foreach ($transactions as $transaction) {
             $transactionQuantity = (float) $transaction->quantity;
@@ -221,10 +220,10 @@ class Holding extends Model
         $realizedProfitLoss = 0.0;
         $realizedCost       = 0.0;
 
-        $transactions = $this->transactions()
-            ->orderBy('transaction_date')
-            ->orderBy('id')
-            ->get();
+        $transactions = $this->transactions->sortBy([
+            ['transaction_date', 'asc'],
+            ['id', 'asc'],
+        ]);
 
         foreach ($transactions as $transaction) {
             $transactionQuantity = (float) $transaction->quantity;
@@ -267,10 +266,10 @@ class Holding extends Model
         $costBasis    = 0.0;
         $realizedCost = 0.0;
 
-        $transactions = $this->transactions()
-            ->orderBy('transaction_date')
-            ->orderBy('id')
-            ->get();
+        $transactions = $this->transactions->sortBy([
+            ['transaction_date', 'asc'],
+            ['id', 'asc'],
+        ]);
 
         foreach ($transactions as $transaction) {
             $transactionQuantity = (float) $transaction->quantity;

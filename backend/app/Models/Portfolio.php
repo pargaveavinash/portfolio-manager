@@ -39,24 +39,45 @@ class Portfolio extends Model
         return $this->hasMany(CashTransaction::class);
     }
 
+    private array $memoizedCalculations = [];
+
+    public function refresh()
+    {
+        $this->memoizedCalculations = [];
+        return parent::refresh();
+    }
+
+    private function memoizeCalculation(string $key, callable $callback)
+    {
+        if (array_key_exists($key, $this->memoizedCalculations)) {
+            return $this->memoizedCalculations[$key];
+        }
+
+        return $this->memoizedCalculations[$key] = $callback();
+    }
+
     public function currentInvestedCost(): float
     {
-        return (float) $this->holdings()
-            ->get()
-            ->sum(
-                fn(Holding $holding): float =>
-                $holding->currentInvestedCost()
-            );
+        return $this->memoizeCalculation('currentInvestedCost', function () {
+            $this->holdings->loadMissing('transactions');
+            return (float) $this->holdings
+                ->sum(
+                    fn(Holding $holding): float =>
+                    $holding->currentInvestedCost()
+                );
+        });
     }
 
     public function currentMarketValue(): float
     {
-        return (float) $this->holdings()
-            ->get()
-            ->sum(
-                fn(Holding $holding): float =>
-                $holding->currentMarketValue()
-            );
+        return $this->memoizeCalculation('currentMarketValue', function () {
+            $this->holdings->loadMissing('transactions');
+            return (float) $this->holdings
+                ->sum(
+                    fn(Holding $holding): float =>
+                    $holding->currentMarketValue()
+                );
+        });
     }
 
     public function unrealizedProfitLoss(): float
@@ -77,12 +98,14 @@ class Portfolio extends Model
 
     public function realizedProfitLoss(): float
     {
-        return (float) $this->holdings()
-            ->get()
-            ->sum(
-                fn(Holding $holding): float =>
-                $holding->realizedProfitLoss()
-            );
+        return $this->memoizeCalculation('realizedProfitLoss', function () {
+            $this->holdings->loadMissing('transactions');
+            return (float) $this->holdings
+                ->sum(
+                    fn(Holding $holding): float =>
+                    $holding->realizedProfitLoss()
+                );
+        });
     }
 
     public function realizedProfitLossPercentage(): float
@@ -116,12 +139,14 @@ class Portfolio extends Model
 
     public function realizedCost(): float
     {
-        return (float) $this->holdings()
-            ->get()
-            ->sum(
-                fn(Holding $holding): float =>
-                $holding->realizedCost()
-            );
+        return $this->memoizeCalculation('realizedCost', function () {
+            $this->holdings->loadMissing('transactions');
+            return (float) $this->holdings
+                ->sum(
+                    fn(Holding $holding): float =>
+                    $holding->realizedCost()
+                );
+        });
     }
 
     public function allocationPercentage(): float
@@ -143,7 +168,8 @@ class Portfolio extends Model
 
     public function currentAllocationPercentage(string $symbol): float
     {
-        $holdings = $this->holdings()->get();
+        $this->holdings->loadMissing('transactions');
+        $holdings = $this->holdings;
 
         $totalMarketValue = $holdings->sum(
             fn(Holding $holding): float => $holding->currentMarketValue()
@@ -203,7 +229,8 @@ class Portfolio extends Model
             return 0.0;
         }
 
-        $holdings = $this->holdings()->get();
+        $this->holdings->loadMissing('transactions');
+        $holdings = $this->holdings;
 
         $totalMarketValue = $holdings->sum(
             fn(Holding $holding): float => $holding->currentMarketValue()
@@ -248,19 +275,18 @@ class Portfolio extends Model
 
     public function cashBalance(): float
     {
-        $cashBalance = (float) $this->cashTransactions()
-            ->get()
-            ->sum(function (CashTransaction $transaction): float {
-                return $transaction->type === 'DEPOSIT'
-                    ? (float) $transaction->amount
-                    : -(float) $transaction->amount;
-            });
+        return $this->memoizeCalculation('cashBalance', function () {
+            $cashBalance = (float) $this->cashTransactions
+                ->sum(function (CashTransaction $transaction): float {
+                    return $transaction->type === 'DEPOSIT'
+                        ? (float) $transaction->amount
+                        : -(float) $transaction->amount;
+                });
 
-        $investmentCashFlow = (float) $this->holdings()
-            ->with('transactions')
-            ->get()
-            ->sum(function (Holding $holding): float {
-                return $holding->transactions
+            $this->holdings->loadMissing('transactions');
+            $investmentCashFlow = (float) $this->holdings
+                ->sum(function (Holding $holding): float {
+                    return $holding->transactions
                     ->sum(function (Transaction $transaction): float {
                         $value = (float) $transaction->quantity
                             * (float) $transaction->price;
@@ -269,9 +295,10 @@ class Portfolio extends Model
                             ? -$value
                             : $value;
                     });
-            });
+                });
 
-        return $cashBalance + $investmentCashFlow;
+            return $cashBalance + $investmentCashFlow;
+        });
     }
 
     public function totalPortfolioValue(): float
