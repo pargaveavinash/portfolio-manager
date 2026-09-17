@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HoldingController;
 use App\Http\Controllers\Api\V1\PortfolioController;
 use App\Http\Controllers\Api\V1\PortfolioSummaryController;
+use App\Http\Controllers\Api\V1\SipPlanController;
 use App\Http\Controllers\Api\V1\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -75,6 +76,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get(
         '/v1/portfolios/{portfolio}/summary',
         [PortfolioSummaryController::class, 'show']
+    );
+
+    Route::get(
+        '/v1/portfolios/{portfolio}/sip-plan',
+        [SipPlanController::class, 'show']
     );
 
     Route::post(
