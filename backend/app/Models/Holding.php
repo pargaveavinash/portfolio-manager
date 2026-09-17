@@ -39,7 +39,23 @@ class Holding extends Model
 
     public function currentQuantity(): float
     {
-        return (float) $this->transactions
+        return $this->historicalQuantity(null);
+    }
+
+    public function historicalQuantity(?\Illuminate\Support\Carbon $date = null): float
+    {
+        $transactions = $this->transactions;
+        if ($date) {
+            $dateString = $date->toDateString();
+            $transactions = $transactions->filter(function ($transaction) use ($dateString) {
+                $txDate = $transaction->transaction_date instanceof \Illuminate\Support\Carbon 
+                    ? $transaction->transaction_date->toDateString() 
+                    : substr((string)$transaction->transaction_date, 0, 10);
+                return $txDate <= $dateString;
+            });
+        }
+        
+        return (float) $transactions
             ->sum(function (Transaction $transaction): float {
                 return $transaction->type === 'BUY'
                     ? (float) $transaction->quantity
@@ -49,10 +65,26 @@ class Holding extends Model
 
     public function currentAveragePrice(): float
     {
+        return $this->historicalAveragePrice(null);
+    }
+
+    public function historicalAveragePrice(?\Illuminate\Support\Carbon $date = null): float
+    {
         $quantity  = 0.0;
         $costBasis = 0.0;
 
-        $transactions = $this->transactions->sortBy([
+        $transactions = $this->transactions;
+        if ($date) {
+            $dateString = $date->toDateString();
+            $transactions = $transactions->filter(function ($transaction) use ($dateString) {
+                $txDate = $transaction->transaction_date instanceof \Illuminate\Support\Carbon 
+                    ? $transaction->transaction_date->toDateString() 
+                    : substr((string)$transaction->transaction_date, 0, 10);
+                return $txDate <= $dateString;
+            });
+        }
+
+        $transactions = $transactions->sortBy([
             ['transaction_date', 'asc'],
             ['id', 'asc'],
         ]);
@@ -89,7 +121,12 @@ class Holding extends Model
 
     public function currentInvestedCost(): float
     {
-        return $this->currentQuantity() * $this->currentAveragePrice();
+        return $this->historicalInvestedCost(null);
+    }
+
+    public function historicalInvestedCost(?\Illuminate\Support\Carbon $date = null): float
+    {
+        return $this->historicalQuantity($date) * $this->historicalAveragePrice($date);
     }
 
     public function currentMarketPrice(): float
@@ -141,7 +178,18 @@ class Holding extends Model
 
             // Calculate exact quantity string to avoid float precision loss during aggregation
             $quantityStr = '0';
-            foreach ($this->transactions as $transaction) {
+            $transactions = $this->transactions;
+            if ($date) {
+                $dateString = $date->toDateString();
+                $transactions = $transactions->filter(function ($transaction) use ($dateString) {
+                    $txDate = $transaction->transaction_date instanceof \Illuminate\Support\Carbon 
+                        ? $transaction->transaction_date->toDateString() 
+                        : substr((string)$transaction->transaction_date, 0, 10);
+                    return $txDate <= $dateString;
+                });
+            }
+
+            foreach ($transactions as $transaction) {
                 $quantityStr = $transaction->type === 'BUY'
                     ? bcadd($quantityStr, (string) $transaction->quantity, 6)
                     : bcsub($quantityStr, (string) $transaction->quantity, 6);
@@ -154,7 +202,7 @@ class Holding extends Model
             return (float) $marketValue;
         }
 
-        return $this->currentQuantity() * $this->historicalMarketPrice($date);
+        return $this->historicalQuantity($date) * $this->historicalMarketPrice($date);
     }
 
     public function unrealizedProfitLoss(): float

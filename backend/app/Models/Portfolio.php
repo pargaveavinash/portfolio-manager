@@ -58,26 +58,42 @@ class Portfolio extends Model
 
     public function currentInvestedCost(): float
     {
-        return $this->memoizeCalculation('currentInvestedCost', function () {
-            $this->holdings->loadMissing('transactions');
-            return (float) $this->holdings
-                ->sum(
-                    fn(Holding $holding): float =>
-                    $holding->currentInvestedCost()
-                );
-        });
+        return $this->historicalInvestedCapital(null);
+    }
+
+    public function historicalInvestedCapital(?\Illuminate\Support\Carbon $date = null): float
+    {
+        return $this->memoizeCalculation(
+            $date ? "historicalInvestedCapital_{$date->toDateString()}" : 'currentInvestedCost', 
+            function () use ($date) {
+                $this->holdings->loadMissing('transactions');
+                return (float) $this->holdings
+                    ->sum(
+                        fn(Holding $holding): float =>
+                        $holding->historicalInvestedCost($date)
+                    );
+            }
+        );
     }
 
     public function currentMarketValue(): float
     {
-        return $this->memoizeCalculation('currentMarketValue', function () {
-            $this->holdings->loadMissing('transactions');
-            return (float) $this->holdings
-                ->sum(
-                    fn(Holding $holding): float =>
-                    $holding->currentMarketValue()
-                );
-        });
+        return $this->historicalMarketValue(null);
+    }
+
+    public function historicalMarketValue(?\Illuminate\Support\Carbon $date = null): float
+    {
+        return $this->memoizeCalculation(
+            $date ? "historicalMarketValue_{$date->toDateString()}" : 'currentMarketValue', 
+            function () use ($date) {
+                $this->holdings->loadMissing('transactions');
+                return (float) $this->holdings
+                    ->sum(
+                        fn(Holding $holding): float =>
+                        $holding->historicalMarketValue($date)
+                    );
+            }
+        );
     }
 
     public function unrealizedProfitLoss(): float
@@ -275,34 +291,69 @@ class Portfolio extends Model
 
     public function cashBalance(): float
     {
-        return $this->memoizeCalculation('cashBalance', function () {
-            $cashBalance = (float) $this->cashTransactions
-                ->sum(function (CashTransaction $transaction): float {
-                    return $transaction->type === 'DEPOSIT'
-                        ? (float) $transaction->amount
-                        : -(float) $transaction->amount;
-                });
+        return $this->historicalCashBalance(null);
+    }
 
-            $this->holdings->loadMissing('transactions');
-            $investmentCashFlow = (float) $this->holdings
-                ->sum(function (Holding $holding): float {
-                    return $holding->transactions
-                    ->sum(function (Transaction $transaction): float {
-                        $value = (float) $transaction->quantity
-                            * (float) $transaction->price;
-
-                        return $transaction->type === 'BUY'
-                            ? -$value
-                            : $value;
+    public function historicalCashBalance(?\Illuminate\Support\Carbon $date = null): float
+    {
+        return $this->memoizeCalculation(
+            $date ? "historicalCashBalance_{$date->toDateString()}" : 'cashBalance', 
+            function () use ($date) {
+                $cashTransactions = $this->cashTransactions;
+                if ($date) {
+                    $dateString = $date->toDateString();
+                    $cashTransactions = $cashTransactions->filter(function ($transaction) use ($dateString) {
+                        $txDate = $transaction->transaction_date instanceof \Illuminate\Support\Carbon 
+                            ? $transaction->transaction_date->toDateString() 
+                            : substr((string)$transaction->transaction_date, 0, 10);
+                        return $txDate <= $dateString;
                     });
-                });
+                }
 
-            return $cashBalance + $investmentCashFlow;
-        });
+                $cashBalance = (float) $cashTransactions
+                    ->sum(function (CashTransaction $transaction): float {
+                        return $transaction->type === 'DEPOSIT'
+                            ? (float) $transaction->amount
+                            : -(float) $transaction->amount;
+                    });
+
+                $this->holdings->loadMissing('transactions');
+                
+                $investmentCashFlow = (float) $this->holdings
+                    ->sum(function (Holding $holding) use ($date): float {
+                        $transactions = $holding->transactions;
+                        if ($date) {
+                            $dateString = $date->toDateString();
+                            $transactions = $transactions->filter(function ($transaction) use ($dateString) {
+                                $txDate = $transaction->transaction_date instanceof \Illuminate\Support\Carbon 
+                                    ? $transaction->transaction_date->toDateString() 
+                                    : substr((string)$transaction->transaction_date, 0, 10);
+                                return $txDate <= $dateString;
+                            });
+                        }
+                        
+                        return $transactions->sum(function (Transaction $transaction): float {
+                            $value = (float) $transaction->quantity
+                                * (float) $transaction->price;
+
+                            return $transaction->type === 'BUY'
+                                ? -$value
+                                : $value;
+                        });
+                    });
+
+                return $cashBalance + $investmentCashFlow;
+            }
+        );
     }
 
     public function totalPortfolioValue(): float
     {
-        return $this->currentMarketValue() + $this->cashBalance();
+        return $this->historicalTotalValue(null);
+    }
+
+    public function historicalTotalValue(?\Illuminate\Support\Carbon $date = null): float
+    {
+        return $this->historicalMarketValue($date) + $this->historicalCashBalance($date);
     }
 }
