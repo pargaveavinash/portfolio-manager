@@ -168,4 +168,38 @@ class PortfolioSummaryTest extends TestCase
             ->assertJsonPath('data.summary.total_profit_loss', 0)
             ->assertJsonPath('data.summary.total_profit_loss_percentage', 0);
     }
+    public function test_summary_fails_cleanly_when_nav_is_missing(): void
+    {
+        $user = User::factory()->create();
+
+        $portfolio = $user->portfolios()->create([
+            'name'          => 'Missing NAV Portfolio',
+            'base_currency' => 'INR',
+        ]);
+
+        $holding = $portfolio->holdings()->create([
+            'symbol'        => 'UNKNOWN_AMFI',
+            'name'          => 'Unknown Fund',
+            'asset_type'    => 'MUTUAL_FUND',
+            'quantity'      => 0,
+            'average_price' => 0,
+            'currency'      => 'INR',
+        ]);
+
+        $holding->transactions()->create([
+            'portfolio_id'     => $portfolio->id,
+            'type'             => 'BUY',
+            'quantity'         => 10,
+            'price'            => 100,
+            'currency'         => 'INR',
+            'transaction_date' => '2023-10-20 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson("/api/v1/portfolios/{$portfolio->id}/summary");
+
+        // The Laravel exception handler will catch the MissingMarketDataException and return 409
+        $response->assertStatus(409)
+                 ->assertJsonPath('message', 'Market data is temporarily unavailable for one or more holdings.');
+    }
 }

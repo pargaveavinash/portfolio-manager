@@ -19,6 +19,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/v1/auth/me', [AuthController::class, 'me']);
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
 
+    Route::get('/v1/mutual-funds/search', [\App\Http\Controllers\Api\V1\MutualFundController::class, 'search']);
+
     Route::apiResource('v1/portfolios', PortfolioController::class);
     Route::post(
         '/v1/portfolios/{portfolio}/holdings',

@@ -95,12 +95,67 @@ class Holding extends Model
 
     public function currentMarketPrice(): float
     {
+        return $this->historicalMarketPrice(null);
+    }
+
+    public function historicalMarketPrice(?\Illuminate\Support\Carbon $date = null): float
+    {
+        if ($this->asset_type === 'MUTUAL_FUND') {
+            /** @var \App\Services\MarketData\MarketDataValuationService $valuationService */
+            $valuationService = app(\App\Services\MarketData\MarketDataValuationService::class);
+            $nav = $valuationService->getApplicableNav(
+                $this->symbol,
+                $this->asset_type,
+                $date ? $date->toDateString() : null
+            );
+
+            if ($nav === null) {
+                throw new \App\Exceptions\MissingMarketDataException("NAV not found for mutual fund: {$this->symbol}");
+            }
+
+            // We return float at the final API boundary for non-bcmath consumers
+            return (float) $nav;
+        }
+
         return (float) $this->market_price;
     }
 
     public function currentMarketValue(): float
     {
-        return $this->currentQuantity() * $this->currentMarketPrice();
+        return $this->historicalMarketValue(null);
+    }
+
+    public function historicalMarketValue(?\Illuminate\Support\Carbon $date = null): float
+    {
+        if ($this->asset_type === 'MUTUAL_FUND') {
+            /** @var \App\Services\MarketData\MarketDataValuationService $valuationService */
+            $valuationService = app(\App\Services\MarketData\MarketDataValuationService::class);
+            $nav = $valuationService->getApplicableNav(
+                $this->symbol,
+                $this->asset_type,
+                $date ? $date->toDateString() : null
+            );
+
+            if ($nav === null) {
+                throw new \App\Exceptions\MissingMarketDataException("NAV not found for mutual fund: {$this->symbol}");
+            }
+
+            // Calculate exact quantity string to avoid float precision loss during aggregation
+            $quantityStr = '0';
+            foreach ($this->transactions()->get() as $transaction) {
+                $quantityStr = $transaction->type === 'BUY'
+                    ? bcadd($quantityStr, (string) $transaction->quantity, 6)
+                    : bcsub($quantityStr, (string) $transaction->quantity, 6);
+            }
+
+            // Multiply without premature truncation (6 + 6 = 12 decimal places max)
+            $marketValue = bcmul($quantityStr, $nav, 12);
+
+            // Output rounding at the API boundary
+            return (float) $marketValue;
+        }
+
+        return $this->currentQuantity() * $this->historicalMarketPrice($date);
     }
 
     public function unrealizedProfitLoss(): float

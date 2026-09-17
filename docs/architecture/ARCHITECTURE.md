@@ -19,6 +19,13 @@ The application follows standard Laravel MVC (Model-View-Controller) architectur
 * **Transaction:** A record of asset movement (BUY/SELL) against a holding.
 * **CashTransaction:** A record of cash movement (deposits/withdrawals) within a portfolio.
 * **PortfolioAllocation:** Represents the asset allocation breakdown of a portfolio.
+* **MutualFund:** Represents a mutual fund scheme identity master record (AMFI code, AMC, etc.).
+* **MutualFundNav:** Represents historical Net Asset Value (NAV) records for a mutual fund.
+
+## Market Data & Valuation Architecture
+* **Market Data Providers:** External integration logic (e.g., AMFI) is encapsulated behind `MutualFundDataProviderInterface` to keep external structures from leaking into the domain.
+* **Valuation Boundary:** The `MarketDataValuationService` handles the resolution of market prices. The `Holding` model delegates market valuation for supported assets (like `MUTUAL_FUND`) to this service rather than duplicating valuation lookup logic.
+* **Synchronization:** A `MutualFundNavSyncService` acts as the boundary for ingesting, validating, and upserting large market-data sets atomically.
 
 ## Important Relationships
 * `User` has many `Portfolio`s.
