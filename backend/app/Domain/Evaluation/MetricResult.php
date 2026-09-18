@@ -12,7 +12,7 @@ class MetricResult
     public function __construct(
         public readonly string $name,
         public readonly string $status,
-        public readonly ?float $value,
+        public readonly float|array|null $value,
         public readonly ?string $reason = null
     ) {
     }
