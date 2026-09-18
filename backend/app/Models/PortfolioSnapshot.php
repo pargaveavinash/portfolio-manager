@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class PortfolioSnapshot extends Model
 {
+    use \Illuminate\Database\Eloquent\Factories\HasFactory;
+
     protected $casts = [
         'valuation_date' => 'date',
         'invested_capital' => 'float',

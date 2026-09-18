@@ -81,6 +81,11 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::get(
+        '/v1/portfolios/{portfolio}/history',
+        [\App\Http\Controllers\Api\V1\PortfolioHistoryController::class, 'index']
+    );
+
+    Route::get(
         '/v1/portfolios/{portfolio}/sip-plan',
         [SipPlanController::class, 'show']
     );
