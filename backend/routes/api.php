@@ -86,6 +86,11 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::get(
+        '/v1/portfolios/{portfolio}/dashboard/trends',
+        [\App\Http\Controllers\Api\V1\PortfolioDashboardTrendController::class, 'show']
+    );
+
+    Route::get(
         '/v1/portfolios/{portfolio}/history',
         [\App\Http\Controllers\Api\V1\PortfolioHistoryController::class, 'index']
     );
