@@ -23,7 +23,8 @@ class EvaluationProfileResolver
                 'cagr',
                 'rolling_returns',
                 'volatility',
-                'maximum_drawdown'
+                'maximum_drawdown',
+                'jensens_alpha'
             ]);
         }
 
@@ -40,7 +41,8 @@ class EvaluationProfileResolver
                 'cagr',
                 'rolling_returns',
                 'volatility',
-                'maximum_drawdown'
+                'maximum_drawdown',
+                'jensens_alpha'
             ]);
         }
 
