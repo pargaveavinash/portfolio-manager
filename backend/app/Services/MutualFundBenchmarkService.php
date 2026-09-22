@@ -91,6 +91,46 @@ class MutualFundBenchmarkService
         return $fundCagr - $benchmarkCagr;
     }
 
+    public function beta(MutualFund $fund, Benchmark $benchmark, Carbon|string $startDate, Carbon|string $endDate): float
+    {
+        $start = $this->parseDate($startDate);
+        $end = $this->parseDate($endDate);
+
+        if ($start->greaterThan($end)) {
+            throw new InvalidArgumentException("Start date cannot be after end date.");
+        }
+
+        $alignedReturns = $this->getAlignedDailyReturns($fund, $benchmark, $start, $end);
+
+        $n = count($alignedReturns);
+
+        $fundReturns = array_column($alignedReturns, 'fund');
+        $benchmarkReturns = array_column($alignedReturns, 'benchmark');
+
+        $meanFund = array_sum($fundReturns) / $n;
+        $meanBenchmark = array_sum($benchmarkReturns) / $n;
+
+        $covarianceSum = 0;
+        $benchmarkVarianceSum = 0;
+
+        foreach ($alignedReturns as $returns) {
+            $fundDiff = $returns['fund'] - $meanFund;
+            $benchmarkDiff = $returns['benchmark'] - $meanBenchmark;
+
+            $covarianceSum += ($fundDiff * $benchmarkDiff);
+            $benchmarkVarianceSum += pow($benchmarkDiff, 2);
+        }
+
+        $benchmarkVariance = $benchmarkVarianceSum / ($n - 1);
+        $covariance = $covarianceSum / ($n - 1);
+
+        if ($benchmarkVariance == 0.0) {
+            throw new InvalidArgumentException("Benchmark return variance is zero.");
+        }
+
+        return $covariance / $benchmarkVariance;
+    }
+
     public function trackingError(MutualFund $fund, Benchmark $benchmark, Carbon|string $startDate, Carbon|string $endDate): float
     {
         $start = $this->parseDate($startDate);
@@ -100,6 +140,30 @@ class MutualFundBenchmarkService
             throw new InvalidArgumentException("Start date cannot be after end date.");
         }
 
+        $alignedReturns = $this->getAlignedDailyReturns($fund, $benchmark, $start, $end);
+
+        $activeReturns = [];
+        foreach ($alignedReturns as $returns) {
+            $activeReturns[] = $returns['fund'] - $returns['benchmark'];
+        }
+
+        $n = count($activeReturns);
+
+        $mean = array_sum($activeReturns) / $n;
+
+        $sumSq = 0;
+        foreach ($activeReturns as $return) {
+            $sumSq += pow($return - $mean, 2);
+        }
+
+        $variance = $sumSq / ($n - 1);
+        $stdDev = sqrt($variance);
+
+        return $stdDev * sqrt(252);
+    }
+
+    private function getAlignedDailyReturns(MutualFund $fund, Benchmark $benchmark, Carbon $start, Carbon $end): array
+    {
         $fundNavs = MutualFundNav::where('mutual_fund_id', $fund->id)
             ->whereDate('nav_date', '>=', $start)
             ->whereDate('nav_date', '<=', $end)
@@ -130,10 +194,10 @@ class MutualFundBenchmarkService
         }
 
         if (count($pairedObservations) < 3) {
-            throw new MissingMarketDataException("Insufficient paired observations for tracking error.");
+            throw new MissingMarketDataException("Insufficient paired observations for return calculation.");
         }
 
-        $activeReturns = [];
+        $alignedReturns = [];
         $previousNav = null;
         $previousBenchmark = null;
 
@@ -149,26 +213,17 @@ class MutualFundBenchmarkService
                 $fundReturn = ($currentNav / $previousNav) - 1.0;
                 $benchmarkReturn = ($currentBenchmark / $previousBenchmark) - 1.0;
 
-                $activeReturns[] = $fundReturn - $benchmarkReturn;
+                $alignedReturns[] = [
+                    'fund' => $fundReturn,
+                    'benchmark' => $benchmarkReturn,
+                ];
             }
 
             $previousNav = $currentNav;
             $previousBenchmark = $currentBenchmark;
         }
 
-        $n = count($activeReturns);
-
-        $mean = array_sum($activeReturns) / $n;
-
-        $sumSq = 0;
-        foreach ($activeReturns as $return) {
-            $sumSq += pow($return - $mean, 2);
-        }
-
-        $variance = $sumSq / ($n - 1);
-        $stdDev = sqrt($variance);
-
-        return $stdDev * sqrt(252);
+        return $alignedReturns;
     }
 
     private function parseDate(Carbon|string $date): Carbon

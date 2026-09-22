@@ -610,4 +610,217 @@ class MutualFundBenchmarkServiceTest extends TestCase
 
         $this->assertLessThanOrEqual(5, count($queries), "Query count is too high, N+1 problem likely.");
     }
+
+    public function test_beta_calculates_correctly_with_known_returns(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,      // Return: 0.01
+            '2026-01-03' => 103.02,     // Return: 0.02
+            '2026-01-04' => 106.1106,   // Return: 0.03
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,      // Return: 0.02
+            '2026-01-03' => 106.08,     // Return: 0.04
+            '2026-01-04' => 112.4448,   // Return: 0.06
+        ]);
+
+        $beta = $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+
+        $this->assertEqualsWithDelta(2.0, $beta, 0.0001);
+    }
+
+    public function test_beta_is_not_annualized(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 103.02,
+            '2026-01-04' => 106.1106,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,
+            '2026-01-03' => 106.08,
+            '2026-01-04' => 112.4448,
+        ]);
+
+        $beta = $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+
+        $this->assertNotEqualsWithDelta(2.0 * sqrt(252), $beta, 0.0001);
+        $this->assertEqualsWithDelta(2.0, $beta, 0.0001);
+    }
+
+    public function test_beta_requires_minimum_observations(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        // Exactly 3 paired observations
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 103.02,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,
+            '2026-01-03' => 106.08,
+        ]);
+
+        $beta = $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+
+        $this->assertIsFloat($beta);
+    }
+
+    public function test_beta_insufficient_observations_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        // Only 2 paired observations
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,
+        ]);
+
+        $this->expectException(MissingMarketDataException::class);
+
+        $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-02');
+    }
+
+    public function test_beta_zero_benchmark_variance_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        // Benchmark returns are all exactly 0.01, so variance is 0
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 102.01,
+            '2026-01-04' => 103.0301,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,
+            '2026-01-03' => 106.08,
+            '2026-01-04' => 112.4448,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+    }
+
+    public function test_beta_zero_previous_nav_or_benchmark_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 0.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 103.02,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 102.0,
+            '2026-01-03' => 106.08,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+    }
+
+    public function test_beta_invalid_date_range_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->service->beta($fund, $this->benchmark, '2026-01-04', '2026-01-01');
+    }
+
+    public function test_beta_ignores_unpaired_observation_dates(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-03' => 101.0,
+            '2026-01-05' => 103.02,
+            '2026-01-06' => 105.0, // Benchmark only
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0, // Fund only
+            '2026-01-03' => 102.0,
+            '2026-01-04' => 103.0, // Fund only
+            '2026-01-05' => 106.08,
+        ]);
+
+        $beta = $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-05');
+
+        $this->assertEqualsWithDelta(2.0, $beta, 0.0001);
+    }
+
+    public function test_tracking_error_regression_after_shared_logic_refactor(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 100.5,
+            '2026-01-04' => 102.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+            '2026-01-03' => 10.1,
+            '2026-01-04' => 10.4,
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+
+        $this->assertEqualsWithDelta(0.162512, $trackingError, 0.00001);
+    }
+
+    public function test_beta_query_efficiency(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        for ($i = 1; $i <= 30; $i++) {
+            $date = Carbon::parse('2026-01-01')->addDays($i - 1)->format('Y-m-d');
+            BenchmarkValue::create(['benchmark_id' => $this->benchmark->id, 'valuation_date' => $date, 'value' => 100 + $i]);
+            MutualFundNav::create(['mutual_fund_id' => $fund->id, 'nav_date' => $date, 'nav' => 10 + ($i * 0.1)]);
+        }
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        try {
+            $this->service->beta($fund, $this->benchmark, '2026-01-01', '2026-01-30');
+        } catch (\Exception $e) {
+            // Fails due to MissingMarketDataException or InvalidArgumentException or division by zero in TDD
+        }
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        $this->assertLessThanOrEqual(5, count($queries), "Query count is too high, N+1 problem likely.");
+    }
 }
