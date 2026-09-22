@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Exceptions\MissingMarketDataException;
 use App\Models\Benchmark;
 use App\Models\BenchmarkValue;
+use App\Models\MutualFund;
+use App\Models\MutualFundNav;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Throwable;
@@ -37,7 +39,7 @@ class MutualFundBenchmarkService
         }
 
         $startValue = $this->resolveValue($benchmark, $start);
-        
+
         if ($startValue === 0.0) {
             throw new InvalidArgumentException("Starting benchmark value is zero.");
         }
@@ -87,6 +89,86 @@ class MutualFundBenchmarkService
         $benchmarkCagr = $this->cagr($benchmark, $startDate, $endDate);
 
         return $fundCagr - $benchmarkCagr;
+    }
+
+    public function trackingError(MutualFund $fund, Benchmark $benchmark, Carbon|string $startDate, Carbon|string $endDate): float
+    {
+        $start = $this->parseDate($startDate);
+        $end = $this->parseDate($endDate);
+
+        if ($start->greaterThan($end)) {
+            throw new InvalidArgumentException("Start date cannot be after end date.");
+        }
+
+        $fundNavs = MutualFundNav::where('mutual_fund_id', $fund->id)
+            ->whereDate('nav_date', '>=', $start)
+            ->whereDate('nav_date', '<=', $end)
+            ->orderBy('nav_date', 'asc')
+            ->get()
+            ->keyBy(function ($item) {
+                return Carbon::parse($item->nav_date)->format('Y-m-d');
+            });
+
+        $benchmarkValues = BenchmarkValue::where('benchmark_id', $benchmark->id)
+            ->whereDate('valuation_date', '>=', $start)
+            ->whereDate('valuation_date', '<=', $end)
+            ->orderBy('valuation_date', 'asc')
+            ->get()
+            ->keyBy(function ($item) {
+                return Carbon::parse($item->valuation_date)->format('Y-m-d');
+            });
+
+        $pairedObservations = [];
+
+        foreach ($fundNavs as $date => $nav) {
+            if ($benchmarkValues->has($date)) {
+                $pairedObservations[] = [
+                    'nav' => (float) $nav->nav,
+                    'benchmark' => (float) $benchmarkValues->get($date)->value,
+                ];
+            }
+        }
+
+        if (count($pairedObservations) < 3) {
+            throw new MissingMarketDataException("Insufficient paired observations for tracking error.");
+        }
+
+        $activeReturns = [];
+        $previousNav = null;
+        $previousBenchmark = null;
+
+        foreach ($pairedObservations as $observation) {
+            $currentNav = $observation['nav'];
+            $currentBenchmark = $observation['benchmark'];
+
+            if ($previousNav !== null && $previousBenchmark !== null) {
+                if ($previousNav == 0 || $previousBenchmark == 0) {
+                    throw new InvalidArgumentException("Zero value encountered in previous observation.");
+                }
+
+                $fundReturn = ($currentNav / $previousNav) - 1.0;
+                $benchmarkReturn = ($currentBenchmark / $previousBenchmark) - 1.0;
+
+                $activeReturns[] = $fundReturn - $benchmarkReturn;
+            }
+
+            $previousNav = $currentNav;
+            $previousBenchmark = $currentBenchmark;
+        }
+
+        $n = count($activeReturns);
+
+        $mean = array_sum($activeReturns) / $n;
+
+        $sumSq = 0;
+        foreach ($activeReturns as $return) {
+            $sumSq += pow($return - $mean, 2);
+        }
+
+        $variance = $sumSq / ($n - 1);
+        $stdDev = sqrt($variance);
+
+        return $stdDev * sqrt(252);
     }
 
     private function parseDate(Carbon|string $date): Carbon

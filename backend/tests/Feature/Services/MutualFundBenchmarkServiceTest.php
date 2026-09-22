@@ -5,6 +5,8 @@ namespace Tests\Feature\Services;
 use App\Exceptions\MissingMarketDataException;
 use App\Models\Benchmark;
 use App\Models\BenchmarkValue;
+use App\Models\MutualFund;
+use App\Models\MutualFundNav;
 use App\Services\MutualFundBenchmarkService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,13 +23,13 @@ class MutualFundBenchmarkServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->benchmark = Benchmark::create([
             'name' => 'NIFTY 50 TRI',
             'code' => 'NIFTY50_TRI',
             'variant' => 'TRI',
         ]);
-        
+
         // This will fail because the class doesn't exist yet, which is expected for TDD.
         $this->service = new MutualFundBenchmarkService();
     }
@@ -383,5 +385,229 @@ class MutualFundBenchmarkServiceTest extends TestCase
         $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-01');
 
         $this->assertEqualsWithDelta($expectedTrackingDifference, $trackingDifference, 0.000001);
+    }
+
+    private function createFundNavs(MutualFund $fund, array $navsData): void
+    {
+        foreach ($navsData as $date => $nav) {
+            MutualFundNav::create([
+                'mutual_fund_id' => $fund->id,
+                'nav_date' => $date,
+                'nav' => $nav,
+            ]);
+        }
+    }
+
+    public function test_tracking_error_calculates_correctly_with_paired_observations(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 100.5,
+            '2026-01-04' => 102.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2, // fund: 0.02, bm: 0.01 -> diff: 0.01
+            '2026-01-03' => 10.1, // fund: -0.0098039, bm: -0.0049504 -> diff: -0.0048534
+            '2026-01-04' => 10.4, // fund: 0.0297029, bm: 0.0149253 -> diff: 0.0147776
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+
+        $this->assertEqualsWithDelta(0.162512, $trackingError, 0.00001);
+    }
+
+    public function test_tracking_error_minimum_observations_succeeds(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 100.5,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+            '2026-01-03' => 10.1,
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+
+        $this->assertIsFloat($trackingError);
+    }
+
+    public function test_tracking_error_insufficient_observations_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+        ]);
+
+        $this->expectException(MissingMarketDataException::class);
+
+        $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-02');
+    }
+
+    public function test_tracking_error_missing_benchmark_observation_skips_fund_nav(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 101.0,
+            // 2026-01-03 missing intentionally
+            '2026-01-04' => 102.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+            '2026-01-03' => 10.1, // Should be skipped
+            '2026-01-04' => 10.4,
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-04');
+
+        $this->assertEqualsWithDelta(0.00329056, $trackingError, 0.00001);
+    }
+
+    public function test_tracking_error_missing_initial_history_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 100.5,
+            '2026-01-04' => 102.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+            '2026-01-03' => 10.1,
+            '2026-01-04' => 10.4,
+        ]);
+
+        $this->expectException(MissingMarketDataException::class);
+
+        // Only 3 valid dates, but dates are 01-02 to 01-03 for first part.
+        // We only pass '2026-01-01' to '2026-01-03'.
+        // Valid paired dates in range: 01-02, 01-03 (Total 2)
+        // Required: 3
+        $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+    }
+
+    public function test_tracking_error_zero_variance(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-02' => 110.0,
+            '2026-01-03' => 121.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 11.0,
+            '2026-01-03' => 12.1,
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+
+        $this->assertEqualsWithDelta(0.00, $trackingError, 0.000001);
+    }
+
+    public function test_tracking_error_zero_previous_nav_or_value_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 0.0,
+            '2026-01-02' => 101.0,
+            '2026-01-03' => 100.5,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2,
+            '2026-01-03' => 10.1,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-03');
+    }
+
+    public function test_tracking_error_invalid_date_range_throws_exception(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->service->trackingError($fund, $this->benchmark, '2026-01-04', '2026-01-01');
+    }
+
+    public function test_tracking_error_different_observation_dates_skips_unpaired(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.0,
+            '2026-01-03' => 101.0,
+            '2026-01-05' => 102.0,
+            '2026-01-06' => 103.0,
+        ]);
+
+        $this->createFundNavs($fund, [
+            '2026-01-01' => 10.0,
+            '2026-01-02' => 10.2, // Unpaired
+            '2026-01-03' => 10.4,
+            '2026-01-04' => 10.3, // Unpaired
+            '2026-01-05' => 10.5,
+        ]);
+
+        $trackingError = $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-05');
+
+        $this->assertEqualsWithDelta(0.33996, $trackingError, 0.0001);
+    }
+
+    public function test_tracking_error_query_efficiency(): void
+    {
+        $fund = MutualFund::factory()->create(['benchmark_id' => $this->benchmark->id]);
+
+        for ($i = 1; $i <= 30; $i++) {
+            $date = Carbon::parse('2026-01-01')->addDays($i - 1)->format('Y-m-d');
+            BenchmarkValue::create(['benchmark_id' => $this->benchmark->id, 'valuation_date' => $date, 'value' => 100 + $i]);
+            MutualFundNav::create(['mutual_fund_id' => $fund->id, 'nav_date' => $date, 'nav' => 10 + ($i * 0.1)]);
+        }
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        try {
+            $this->service->trackingError($fund, $this->benchmark, '2026-01-01', '2026-01-30');
+        } catch (\Error $e) {
+            // It will throw an error since the method doesn't exist, but we still assert the query log count
+            // if we want, or rather the test will just fail gracefully since the method doesn't exist yet.
+            // Wait, if it fails due to Method not found, the test will just exit early and not reach assertions.
+        }
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        $this->assertLessThanOrEqual(5, count($queries), "Query count is too high, N+1 problem likely.");
     }
 }
