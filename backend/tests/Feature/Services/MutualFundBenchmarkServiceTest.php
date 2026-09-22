@@ -269,4 +269,119 @@ class MutualFundBenchmarkServiceTest extends TestCase
 
         $this->assertEqualsWithDelta($expectedCagr, $cagr, 0.000001);
     }
+
+    public function test_tracking_difference_positive(): void
+    {
+        $this->createBenchmarkValues([
+            '2024-01-01' => 100.00,
+            '2026-01-01' => 121.00,
+        ]);
+
+        $days = Carbon::parse('2024-01-01')->diffInDays(Carbon::parse('2026-01-01'));
+        $years = $days / 365.25;
+        $benchmarkCagr = pow((121.00 / 100.00), (1 / $years)) - 1;
+
+        $fundCagr = $benchmarkCagr + 0.05;
+
+        $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-01');
+
+        $this->assertEqualsWithDelta(0.05, $trackingDifference, 0.000001);
+    }
+
+    public function test_tracking_difference_negative(): void
+    {
+        $this->createBenchmarkValues([
+            '2024-01-01' => 100.00,
+            '2026-01-01' => 121.00,
+        ]);
+
+        $days = Carbon::parse('2024-01-01')->diffInDays(Carbon::parse('2026-01-01'));
+        $years = $days / 365.25;
+        $benchmarkCagr = pow((121.00 / 100.00), (1 / $years)) - 1;
+
+        $fundCagr = $benchmarkCagr - 0.02;
+
+        $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-01');
+
+        $this->assertEqualsWithDelta(-0.02, $trackingDifference, 0.000001);
+    }
+
+    public function test_tracking_difference_zero(): void
+    {
+        $this->createBenchmarkValues([
+            '2024-01-01' => 100.00,
+            '2026-01-01' => 121.00,
+        ]);
+
+        $days = Carbon::parse('2024-01-01')->diffInDays(Carbon::parse('2026-01-01'));
+        $years = $days / 365.25;
+        $benchmarkCagr = pow((121.00 / 100.00), (1 / $years)) - 1;
+
+        $fundCagr = $benchmarkCagr;
+
+        $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-01');
+
+        $this->assertEqualsWithDelta(0.00, $trackingDifference, 0.000001);
+    }
+
+    public function test_tracking_difference_uses_cagr_logic(): void
+    {
+        $this->createBenchmarkValues([
+            '2023-12-30' => 100.00,
+            '2026-01-05' => 121.00,
+        ]);
+
+        $days = Carbon::parse('2024-01-01')->diffInDays(Carbon::parse('2026-01-10'));
+        $years = $days / 365.25;
+        $benchmarkCagr = pow((121.00 / 100.00), (1 / $years)) - 1;
+
+        $fundCagr = 0.15;
+        $expectedTrackingDifference = $fundCagr - $benchmarkCagr;
+
+        $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-10');
+
+        $this->assertEqualsWithDelta($expectedTrackingDifference, $trackingDifference, 0.000001);
+    }
+
+    public function test_tracking_difference_missing_benchmark_data_throws_exception(): void
+    {
+        $this->createBenchmarkValues([
+            '2026-01-01' => 100.00,
+        ]);
+
+        $this->expectException(MissingMarketDataException::class);
+
+        $this->service->trackingDifference($this->benchmark, 0.10, '2024-01-01', '2026-01-01');
+    }
+
+    public function test_tracking_difference_invalid_date_range_throws_exception(): void
+    {
+        $this->createBenchmarkValues([
+            '2024-01-01' => 100.00,
+            '2026-01-01' => 121.00,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->service->trackingDifference($this->benchmark, 0.10, '2026-01-01', '2024-01-01');
+    }
+
+    public function test_tracking_difference_maintains_precision(): void
+    {
+        $this->createBenchmarkValues([
+            '2024-01-01' => 101.123,
+            '2026-01-01' => 134.567,
+        ]);
+
+        $days = Carbon::parse('2024-01-01')->diffInDays(Carbon::parse('2026-01-01'));
+        $years = $days / 365.25;
+        $benchmarkCagr = pow((134.567 / 101.123), (1 / $years)) - 1;
+
+        $fundCagr = 0.1234567;
+        $expectedTrackingDifference = $fundCagr - $benchmarkCagr;
+
+        $trackingDifference = $this->service->trackingDifference($this->benchmark, $fundCagr, '2024-01-01', '2026-01-01');
+
+        $this->assertEqualsWithDelta($expectedTrackingDifference, $trackingDifference, 0.000001);
+    }
 }

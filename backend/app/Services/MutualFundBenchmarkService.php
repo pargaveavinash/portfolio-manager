@@ -82,6 +82,13 @@ class MutualFundBenchmarkService
         return pow(($endValue / $startValue), (1 / $years)) - 1.0;
     }
 
+    public function trackingDifference(Benchmark $benchmark, float $fundCagr, Carbon|string $startDate, Carbon|string $endDate): float
+    {
+        $benchmarkCagr = $this->cagr($benchmark, $startDate, $endDate);
+
+        return $fundCagr - $benchmarkCagr;
+    }
+
     private function parseDate(Carbon|string $date): Carbon
     {
         if ($date instanceof Carbon) {
