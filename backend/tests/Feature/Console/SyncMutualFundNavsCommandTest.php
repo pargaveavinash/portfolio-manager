@@ -12,15 +12,14 @@ class SyncMutualFundNavsCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_sync_command_invokes_mutual_fund_nav_sync_service()
+    public function test_sync_command_dispatches_mutual_fund_nav_sync_job()
     {
-        $mockService = Mockery::mock(MutualFundNavSyncService::class);
-        $mockService->shouldReceive('sync')->once();
-
-        $this->app->instance(MutualFundNavSyncService::class, $mockService);
+        \Illuminate\Support\Facades\Queue::fake();
 
         $exitCode = Artisan::call('mutual-funds:sync-navs');
 
         $this->assertEquals(0, $exitCode);
+        
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncMutualFundNavsJob::class);
     }
 }

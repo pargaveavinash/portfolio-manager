@@ -18,136 +18,67 @@ class SnapshotBackfillCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_command_defaults_to_today_if_no_date_provided()
+    public function test_command_dispatches_jobs_for_all_portfolios()
     {
+        \Illuminate\Support\Facades\Queue::fake();
+
         $user = User::factory()->create();
-        $portfolio = Portfolio::factory()->for($user)->create();
-        
-        $portfolio->cashTransactions()->create([
-            'type' => 'DEPOSIT',
-            'amount' => 1000,
-            'currency' => 'INR',
-            'transaction_date' => Carbon::today()->subDays(2)->toDateString(),
-        ]);
+        $portfolio1 = Portfolio::factory()->for($user)->create();
+        $portfolio2 = Portfolio::factory()->for($user)->create();
 
         $this->artisan('portfolio:snapshot-backfill')
             ->assertExitCode(0);
 
-        $this->assertSame(3, $portfolio->snapshots()->count());
-        $this->assertTrue($portfolio->snapshots()->whereDate('valuation_date', Carbon::today()->toDateString())->exists());
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\BackfillPortfolioSnapshotJob::class, function ($job) use ($portfolio1) {
+            return $job->portfolioId === $portfolio1->id;
+        });
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\BackfillPortfolioSnapshotJob::class, function ($job) use ($portfolio2) {
+            return $job->portfolioId === $portfolio2->id;
+        });
     }
 
-    public function test_command_accepts_explicit_end_date()
+    public function test_command_accepts_explicit_end_date_and_passes_to_job()
     {
+        \Illuminate\Support\Facades\Queue::fake();
+
         $user = User::factory()->create();
         $portfolio = Portfolio::factory()->for($user)->create();
-        
-        $portfolio->cashTransactions()->create([
-            'type' => 'DEPOSIT',
-            'amount' => 1000,
-            'currency' => 'INR',
-            'transaction_date' => '2026-01-01',
-        ]);
 
         $this->artisan('portfolio:snapshot-backfill --end-date=2026-01-03')
             ->assertExitCode(0);
 
-        $this->assertSame(3, $portfolio->snapshots()->count());
-        $this->assertTrue($portfolio->snapshots()->whereDate('valuation_date', '2026-01-03')->exists());
-        $this->assertFalse($portfolio->snapshots()->whereDate('valuation_date', '2026-01-04')->exists());
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\BackfillPortfolioSnapshotJob::class, function ($job) use ($portfolio) {
+            return $job->portfolioId === $portfolio->id && $job->endDate === '2026-01-03';
+        });
     }
 
     public function test_command_filters_by_portfolio_id()
     {
+        \Illuminate\Support\Facades\Queue::fake();
+
         $user = User::factory()->create();
         $portfolio1 = Portfolio::factory()->for($user)->create();
         $portfolio2 = Portfolio::factory()->for($user)->create();
-        
-        $portfolio1->cashTransactions()->create([
-            'type' => 'DEPOSIT',
-            'amount' => 1000,
-            'currency' => 'INR',
-            'transaction_date' => '2026-01-01',
-        ]);
-
-        $portfolio2->cashTransactions()->create([
-            'type' => 'DEPOSIT',
-            'amount' => 2000,
-            'currency' => 'INR',
-            'transaction_date' => '2026-01-01',
-        ]);
 
         $this->artisan("portfolio:snapshot-backfill --portfolio={$portfolio1->id} --end-date=2026-01-02")
             ->assertExitCode(0);
 
-        $this->assertSame(2, $portfolio1->snapshots()->count());
-        $this->assertSame(0, $portfolio2->snapshots()->count());
-    }
-
-    public function test_command_halts_affected_portfolio_on_missing_nav_but_continues_others()
-    {
-        $user = User::factory()->create();
-        $portfolio1 = Portfolio::factory()->for($user)->create(); // Will fail due to missing NAV
-        $portfolio2 = Portfolio::factory()->for($user)->create(); // Will succeed (cash only)
-
-        $fund = MutualFund::create([
-            'amfi_code' => '555555',
-            'scheme_name' => 'Test',
-            'amc_name' => 'Test AMC',
-            'plan_type' => 'DIRECT',
-            'option_type' => 'GROWTH',
-            'category' => 'Equity',
-            'asset_type' => 'MUTUAL_FUND'
-        ]);
-        MutualFundNav::create([
-            'mutual_fund_id' => $fund->id,
-            'nav_date' => '2026-01-02', // NAV only exists from 02
-            'nav' => 50.00,
-        ]);
-
-        $holding = $portfolio1->holdings()->create([
-            'symbol' => $fund->amfi_code,
-            'name' => 'Test',
-            'asset_type' => 'MUTUAL_FUND',
-            'quantity' => 0,
-            'average_price' => 0,
-            'currency' => 'INR',
-        ]);
-
-        $holding->transactions()->create([
-            'portfolio_id' => $portfolio1->id,
-            'type' => 'BUY',
-            'quantity' => 10,
-            'price' => 45.00,
-            'currency' => 'INR',
-            'transaction_date' => '2026-01-01', // Transaction on 01 where NAV is missing
-        ]);
-
-        $portfolio2->cashTransactions()->create([
-            'type' => 'DEPOSIT',
-            'amount' => 1000,
-            'currency' => 'INR',
-            'transaction_date' => '2026-01-01',
-        ]);
-
-        // Portfolio 1 processes first, throws exception on 2026-01-01.
-        // Command should catch, error out for Portfolio 1, and continue to Portfolio 2.
-        
-        $this->artisan('portfolio:snapshot-backfill --end-date=2026-01-02')
-            ->expectsOutputToContain('Failed to generate snapshot for Portfolio ID: ' . $portfolio1->id)
-            ->assertExitCode(1); // Command can return 1 if there were any errors overall, but still process portfolio2
-
-        // Portfolio 1 should have NO snapshots because it failed on day 1
-        $this->assertSame(0, $portfolio1->snapshots()->count());
-
-        // Portfolio 2 should be fully backfilled
-        $this->assertSame(2, $portfolio2->snapshots()->count());
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\BackfillPortfolioSnapshotJob::class, function ($job) use ($portfolio1) {
+            return $job->portfolioId === $portfolio1->id;
+        });
+        \Illuminate\Support\Facades\Queue::assertNotPushed(\App\Jobs\BackfillPortfolioSnapshotJob::class, function ($job) use ($portfolio2) {
+            return $job->portfolioId === $portfolio2->id;
+        });
     }
 
     public function test_command_requires_valid_date_format()
     {
+        \Illuminate\Support\Facades\Queue::fake();
+
         $this->artisan('portfolio:snapshot-backfill --end-date=invalid-date')
             ->expectsOutputToContain('Invalid date format')
             ->assertExitCode(1);
+
+        \Illuminate\Support\Facades\Queue::assertNothingPushed();
     }
 }

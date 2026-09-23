@@ -5,6 +5,7 @@ namespace App\Services\Evaluators;
 use App\Models\AlertNotification;
 use App\Models\AlertRule;
 use App\Models\Holding;
+use Illuminate\Support\Facades\DB;
 
 class PriceEvaluator implements AlertEvaluatorInterface
 {
@@ -49,17 +50,28 @@ class PriceEvaluator implements AlertEvaluatorInterface
 
         if ($triggered) {
             if (!$rule->last_evaluated_state) {
-                AlertNotification::create([
-                    'alert_rule_id' => $rule->id,
-                    'user_id' => $rule->user_id,
-                    'message' => "Holding {$holding->symbol} crossed threshold {$rule->threshold_value}. Current price: {$price}",
-                    'triggered_at' => now(),
-                ]);
-                $rule->update(['last_evaluated_state' => true]);
+                DB::transaction(function () use ($rule, $holding, $price) {
+                    $updated = AlertRule::where('id', $rule->id)
+                        ->where('last_evaluated_state', false)
+                        ->update(['last_evaluated_state' => true]);
+
+                    if ($updated) {
+                        AlertNotification::create([
+                            'alert_rule_id' => $rule->id,
+                            'user_id' => $rule->user_id,
+                            'message' => "Holding {$holding->symbol} crossed threshold {$rule->threshold_value}. Current price: {$price}",
+                            'triggered_at' => now(),
+                        ]);
+                        $rule->last_evaluated_state = true;
+                    }
+                });
             }
         } else {
             if ($rule->last_evaluated_state) {
-                $rule->update(['last_evaluated_state' => false]);
+                AlertRule::where('id', $rule->id)
+                    ->where('last_evaluated_state', true)
+                    ->update(['last_evaluated_state' => false]);
+                $rule->last_evaluated_state = false;
             }
         }
     }

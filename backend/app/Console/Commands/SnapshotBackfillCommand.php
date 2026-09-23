@@ -2,9 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Exceptions\MissingMarketDataException;
 use App\Models\Portfolio;
-use App\Services\PortfolioSnapshotService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -27,7 +25,7 @@ class SnapshotBackfillCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(PortfolioSnapshotService $service)
+    public function handle()
     {
         $endDateStr = $this->option('end-date');
 
@@ -50,28 +48,16 @@ class SnapshotBackfillCommand extends Command
         }
 
         $portfolios = $query->get();
-        $hasErrors = false;
 
         $this->info("Starting backfill up to " . $endDate->toDateString());
 
         foreach ($portfolios as $portfolio) {
             $this->info("Processing Portfolio ID: {$portfolio->id}");
-
-            try {
-                $service->backfillPortfolio($portfolio, $endDate->toDateString());
-            } catch (MissingMarketDataException $e) {
-                $this->error("Failed to generate snapshot for Portfolio ID: {$portfolio->id}. " . $e->getMessage());
-                $hasErrors = true;
-                continue;
-            } catch (\Exception $e) {
-                $this->error("Unexpected error processing Portfolio ID: {$portfolio->id}. " . $e->getMessage());
-                $hasErrors = true;
-                continue;
-            }
+            \App\Jobs\BackfillPortfolioSnapshotJob::dispatch($portfolio->id, $endDate->toDateString());
         }
 
         $this->info("Backfill complete.");
 
-        return $hasErrors ? 1 : 0;
+        return 0;
     }
 }

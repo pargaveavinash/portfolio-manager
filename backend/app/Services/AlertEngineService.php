@@ -22,19 +22,23 @@ class AlertEngineService
         ];
     }
 
+    public function evaluateRule(AlertRule $rule): void
+    {
+        if (isset($this->evaluators[$rule->type])) {
+            try {
+                $this->evaluators[$rule->type]->evaluate($rule);
+            } catch (\App\Exceptions\MissingMarketDataException $e) {
+                // Skip evaluation for this cycle as per financial safety rules
+            }
+        }
+    }
+
     public function evaluate(): void
     {
         $rules = AlertRule::where('is_active', true)->get();
 
         foreach ($rules as $rule) {
-            if (isset($this->evaluators[$rule->type])) {
-                try {
-                    $this->evaluators[$rule->type]->evaluate($rule);
-                } catch (\App\Exceptions\MissingMarketDataException $e) {
-                    // Skip evaluation for this cycle as per financial safety rules
-                    continue;
-                }
-            }
+            $this->evaluateRule($rule);
         }
     }
 }

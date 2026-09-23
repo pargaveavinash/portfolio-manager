@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Services\AlertEngineService;
 use Illuminate\Console\Command;
 
 class EvaluateAlertsCommand extends Command
@@ -24,11 +23,14 @@ class EvaluateAlertsCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(AlertEngineService $engine): int
+    public function handle(): int
     {
         $this->info('Starting alert evaluation...');
         
-        $engine->evaluate();
+        $rules = \App\Models\AlertRule::where('is_active', true)->get();
+        foreach ($rules as $rule) {
+            \App\Jobs\EvaluateAlertRuleJob::dispatch($rule->id);
+        }
         
         $this->info('Alert evaluation completed.');
         

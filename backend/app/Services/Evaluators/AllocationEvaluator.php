@@ -5,6 +5,7 @@ namespace App\Services\Evaluators;
 use App\Models\AlertNotification;
 use App\Models\AlertRule;
 use App\Models\Portfolio;
+use Illuminate\Support\Facades\DB;
 
 class AllocationEvaluator implements AlertEvaluatorInterface
 {
@@ -36,19 +37,30 @@ class AllocationEvaluator implements AlertEvaluatorInterface
         if ($deviated) {
             if (!$rule->last_evaluated_state) {
                 // FALSE -> TRUE: create notification and transition state
-                AlertNotification::create([
-                    'alert_rule_id' => $rule->id,
-                    'user_id' => $rule->user_id,
-                    'message' => 'Allocation deviation detected for: ' . implode(', ', $deviatedSymbols),
-                    'triggered_at' => now(),
-                ]);
-                $rule->update(['last_evaluated_state' => true]);
+                DB::transaction(function () use ($rule, $deviatedSymbols) {
+                    $updated = AlertRule::where('id', $rule->id)
+                        ->where('last_evaluated_state', false)
+                        ->update(['last_evaluated_state' => true]);
+                    
+                    if ($updated) {
+                        AlertNotification::create([
+                            'alert_rule_id' => $rule->id,
+                            'user_id' => $rule->user_id,
+                            'message' => 'Allocation deviation detected for: ' . implode(', ', $deviatedSymbols),
+                            'triggered_at' => now(),
+                        ]);
+                        $rule->last_evaluated_state = true;
+                    }
+                });
             }
             // TRUE -> TRUE: do nothing (idempotency)
         } else {
             if ($rule->last_evaluated_state) {
                 // TRUE -> FALSE: reset state
-                $rule->update(['last_evaluated_state' => false]);
+                AlertRule::where('id', $rule->id)
+                    ->where('last_evaluated_state', true)
+                    ->update(['last_evaluated_state' => false]);
+                $rule->last_evaluated_state = false;
             }
         }
     }

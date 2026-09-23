@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Services\MarketData\MutualFundNavSyncService;
 use Illuminate\Console\Command;
 
 class SyncMutualFundNavsCommand extends Command
@@ -24,12 +23,12 @@ class SyncMutualFundNavsCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(MutualFundNavSyncService $syncService)
+    public function handle()
     {
         $this->info('Starting mutual fund NAV sync...');
 
         try {
-            $syncService->sync();
+            \App\Jobs\SyncMutualFundNavsJob::dispatch();
             $this->info('Mutual fund NAV sync completed successfully.');
             return self::SUCCESS;
         } catch (\Exception $e) {
