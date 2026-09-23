@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\PortfolioController;
 use App\Http\Controllers\Api\V1\PortfolioSummaryController;
 use App\Http\Controllers\Api\V1\SipPlanController;
 use App\Http\Controllers\Api\V1\TransactionController;
+use App\Http\Controllers\Api\V1\AlertRuleController;
+use App\Http\Controllers\Api\V1\AlertNotificationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -104,6 +106,17 @@ Route::middleware('auth:sanctum')->group(function () {
         '/v1/portfolios/{portfolio}/cash-transactions',
         [CashTransactionController::class, 'store']
     );
+
+    // Phase 13 - Alerts
+    Route::get('/v1/alerts/rules', [AlertRuleController::class, 'index']);
+    Route::post('/v1/alerts/rules', [AlertRuleController::class, 'store']);
+    Route::get('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'show']);
+    Route::put('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'update']);
+    Route::patch('/v1/alerts/rules/{rule}/toggle', [AlertRuleController::class, 'toggle']);
+    Route::delete('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'destroy']);
+    
+    Route::get('/v1/alerts/notifications', [AlertNotificationController::class, 'index']);
+    Route::patch('/v1/alerts/notifications/{notification}/read', [AlertNotificationController::class, 'markAsRead']);
 });
 
 Route::get('/v1/health', HealthController::class);

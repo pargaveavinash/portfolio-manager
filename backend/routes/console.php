@@ -18,3 +18,7 @@ Schedule::command('portfolio:snapshot-backfill', [
 Schedule::command('mutual-funds:sync-navs')
     ->timezone('Asia/Kolkata')
     ->dailyAt('23:00');
+
+Schedule::command('alerts:evaluate')
+    ->timezone('Asia/Kolkata')
+    ->dailyAt('09:00');
