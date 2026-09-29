@@ -24,6 +24,11 @@ class Portfolio extends Model
         return $this->hasMany(Holding::class);
     }
 
+    public function sipPlans(): HasMany
+    {
+        return $this->hasMany(SipPlan::class);
+    }
+
     public function snapshots(): HasMany
     {
         return $this->hasMany(PortfolioSnapshot::class);

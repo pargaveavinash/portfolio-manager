@@ -102,6 +102,11 @@ Route::middleware('auth:sanctum')->group(function () {
         [SipPlanController::class, 'show']
     );
 
+    Route::apiResource(
+        'v1/portfolios.sip-plans',
+        \App\Http\Controllers\Api\V1\PortfolioSipPlanController::class
+    )->shallow();
+
     Route::post(
         '/v1/portfolios/{portfolio}/cash-transactions',
         [CashTransactionController::class, 'store']
