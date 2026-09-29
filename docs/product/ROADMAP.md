@@ -20,6 +20,7 @@ The following phases have been fully implemented, tested, and merged into the ma
 * **Phase 9 — Rebalancing Engine**: Suggesting BUY/SELL/HOLD and rebalancing amounts.
 * **Cash Management**: Cash deposits, withdrawals, and cash balance calculation.
 * **Phase 10 — SIP Planner (MVP Calculation Logic)**: SIP optimization strategy, calculating ideal distribution to minimize allocation drift.
+* **SIP Persistence & Scheduling MVP**: Persistent SIP scheduling, Pause/Resume, Next schedule date calculation.
 * **Phase 11 — Market Data (Phase 11A Mutual Funds MVP)**: Fetching, storing, and utilizing NAVs from AMFI.
 * **Phase 12 — Dashboard**: Dashboard summary, historical trends, and Portfolio Snapshotting.
 * **Phase 13 — Alerts & Automation (In-App Alerts MVP)**: In-app/database notifications for threshold breaches, scheduled evaluation jobs.
@@ -33,7 +34,6 @@ The repository is fully up to date with Phase 13. The next product feature or in
 
 ## Deferred Backlog
 These items are intentionally deferred and are NOT considered incomplete bugs. They were explicitly scoped out of their respective MVP phases to focus on core business correctness and to prevent scope creep:
-* **SIP Persistence & Scheduling Model**: Persistent SIP scheduling in the database (Prerequisite for full SIP Alert implementation).
 * **External Alert Notifications (Email/SMS/Push)**: Excluded from Phase 13 MVP to focus on business correctness and evaluation idempotency.
 * **Phase 11B+ — Generalized Instrument Identity / Stocks / ETFs**: Expanding market data to handle non-Mutual Fund assets.
 * **Additional SIP Strategies**: Implementation of `deficit_proportional` and `largest_deficit` allocation strategies.
