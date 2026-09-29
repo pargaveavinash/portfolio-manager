@@ -4,32 +4,55 @@
 *Note: This roadmap reflects the actual repository implementation state as discovered by repository inspection.*
 *Product phases do not necessarily have to be implemented in numerical order. The actual repository implementation state determines current development priority. The original roadmap is a planning document, not the source of truth for code state.*
 
-### 1. Completed Functionality
-* **Phase 0: Infrastructure**
-* **Phase 1: Authentication**
-* **Phase 2: Portfolio**
-* **Phase 3: Holdings**
-* **Phase 4: Transactions**
-* **Phase 5: Holding Position**
-* **Phase 6: Portfolio Performance** (Merged into main)
-* **Phase 7: Portfolio Summary** (Complete)
-* **Phase 8: Asset Allocation** (`PortfolioAllocation` implemented)
-* **Phase 9: Rebalancing Engine** (Merged into main)
+## Current Project Position
 
-### 2. Current / In-Progress Functionality
-* **Cash Management** — The current working branch is `feature/portfolio-cash-management`. Cash transactions and portfolio balance calculations have been committed but are not yet merged to main.
+### Completed
+The following phases have been fully implemented, tested, and merged into the main branch:
+* **Phase 0 — Infrastructure**: Docker/Docker Compose, PostgreSQL, PHPUnit/Pest.
+* **Phase 1 — Authentication**: User model, Auth controllers.
+* **Phase 2 — Portfolio**: Portfolio CRUD, authorization, soft deletes.
+* **Phase 3 — Holdings**: Holding CRUD, ownership.
+* **Phase 4 — Transactions**: Transaction CRUD, Buy/Sell validation.
+* **Phase 5 — Holding Position**: Holding position calculation (Quantity, Avg Cost).
+* **Phase 6 — Portfolio Performance**: Invested Cost, Unrealized/Realized P&L, Total P&L.
+* **Phase 7 — Portfolio Summary**: Aggregated financial summary endpoint.
+* **Phase 8 — Asset Allocation**: Target percentages and portfolio allocation.
+* **Phase 9 — Rebalancing Engine**: Suggesting BUY/SELL/HOLD and rebalancing amounts.
+* **Cash Management**: Cash deposits, withdrawals, and cash balance calculation.
+* **Phase 10 — SIP Planner (MVP Calculation Logic)**: SIP optimization strategy, calculating ideal distribution to minimize allocation drift.
+* **Phase 11 — Market Data (Phase 11A Mutual Funds MVP)**: Fetching, storing, and utilizing NAVs from AMFI.
+* **Phase 12 — Dashboard**: Dashboard summary, historical trends, and Portfolio Snapshotting.
+* **Phase 13 — Alerts & Automation (In-App Alerts MVP)**: In-app/database notifications for threshold breaches, scheduled evaluation jobs.
 
-### 3. Next Development Task
-* **Phase 13: Alerts & Automation** (Next logical feature)
+### Current / Next
+*Next development priority requires product decision.*
+The repository is fully up to date with Phase 13. The next product feature or infrastructure phase must be explicitly decided.
 
-### 4. Planned Functionality
-* **Phase 10: SIP Planner**
-* **Phase 11: Market Data**
-* **Phase 12: Dashboard**
-* **Phase 13: Alerts & Automation**
-* **Phase 14: Production Engineering**
+### Pending
+* **Phase 14 — Production Engineering**: Preparing the application for real-world scaling, deployment, and performance.
 
----
+## Deferred Backlog
+These items are intentionally deferred and are NOT considered incomplete bugs. They were explicitly scoped out of their respective MVP phases to focus on core business correctness and to prevent scope creep:
+* **SIP Persistence & Scheduling Model**: Persistent SIP scheduling in the database (Prerequisite for full SIP Alert implementation).
+* **External Alert Notifications (Email/SMS/Push)**: Excluded from Phase 13 MVP to focus on business correctness and evaluation idempotency.
+* **Phase 11B+ — Generalized Instrument Identity / Stocks / ETFs**: Expanding market data to handle non-Mutual Fund assets.
+* **Additional SIP Strategies**: Implementation of `deficit_proportional` and `largest_deficit` allocation strategies.
+* **Automatic SIP Execution**: Automatic execution of BUY transactions and automatic cash deduction from `cashBalance()`.
+* **Intraday / Real-time Market Data**: Along with FX, fund recommendation, and fund scoring.
+* **Other advanced market-data features already documented in the repository**.
 
-### 5. Roadmap / Repository Discrepancies
-The actual codebase implementation has progressed beyond the strict numerical order defined in the original `AGENTS.md`. Specifically, Portfolio Performance (Phase 6), Asset Allocation (Phase 8), and Rebalancing (Phase 9) have already been implemented and merged. The original roadmap assumed the immediate next task was "Current Invested Cost" under Phase 6, but that has already been completed.
+## Phase 14 Status
+This section reflects the actual repository inspection regarding Production Engineering (Phase 14). Do not automatically make Phase 14 the next implementation task merely because it is the next numbered phase. The roadmap clearly separates the product backlog, production engineering, and deferred enhancements.
+
+* **Redis**: Already implemented as application infrastructure (available in `docker-compose.yml` and configured in `.env.example`). Not yet configured for clustered production scaling.
+* **Queues**: Already implemented as application infrastructure (Redis driver is used for jobs like `SyncMutualFundNavsJob` and `EvaluateAlertRuleJob`). No production worker management (like Horizon) yet.
+* **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.
+* **Rate Limiting**: Not implemented for production. Relies on default Laravel settings without explicit API hardening.
+* **Caching**: Partially implemented as application infrastructure (Redis available), but not heavily utilized for API response caching or complex data caching.
+* **Logging**: Not implemented for production. Uses default Laravel local file logging. No centralized logging setup.
+* **Monitoring**: Not implemented. No APM or metrics (like Datadog, Prometheus, or Sentry) configured.
+* **Error Handling**: Not implemented for production. Relies on default JSON error handling without customized production formatting/alerts.
+* **CI/CD**: Not implemented. No GitHub Actions or CI/CD pipeline definitions exist.
+* **Production Docker**: Not implemented. Only development `docker-compose.yml` exists. No `Dockerfile.prod`.
+* **AWS Deployment**: Not implemented. No AWS scripts or Terraform.
+* **Security Hardening**: Not implemented. No explicit configuration for production security (e.g. strict CORS, WAF).
