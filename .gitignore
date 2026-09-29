@@ -27,3 +27,8 @@ backend/.phpunit.result.cache
 .vscode/
 .cursor/
 .zed/
+# Agentic Reports
+*_report.md
+phase_*.md
+current_product_status.md
+root_cause_analysis_*.md
