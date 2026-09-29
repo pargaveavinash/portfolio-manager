@@ -3,13 +3,20 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\PortfolioSummaryResource;
 use App\Models\Portfolio;
+use App\Services\PortfolioCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class PortfolioSummaryController extends Controller
 {
+    private PortfolioCacheService $cacheService;
+
+    public function __construct(PortfolioCacheService $cacheService)
+    {
+        $this->cacheService = $cacheService;
+    }
+
     /**
      * Display the portfolio summary.
      */
@@ -20,8 +27,10 @@ class PortfolioSummaryController extends Controller
             404
         );
 
+        $data = $this->cacheService->getSummary($portfolio);
+
         return response()->json([
-            'data' => new PortfolioSummaryResource($portfolio),
+            'data' => $data,
         ]);
     }
 }

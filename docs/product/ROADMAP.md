@@ -26,8 +26,9 @@ The following phases have been fully implemented, tested, and merged into the ma
 * **Phase 13 — Alerts & Automation (In-App Alerts MVP)**: In-app/database notifications for threshold breaches, scheduled evaluation jobs.
 
 ### Current / Next
-*Next development priority requires product decision.*
-The repository is fully up to date with Phase 13. The next product feature or infrastructure phase must be explicitly decided.
+* **Phase 14A — Application Caching**: 
+  - Portfolio Summary caching implemented (14A.1)
+  - Remaining caching slices (Performance, Allocation, Dashboard, Rebalancing, mutation invalidations) still pending
 
 ### Pending
 * **Phase 14 — Production Engineering**: Preparing the application for real-world scaling, deployment, and performance.
@@ -44,11 +45,11 @@ These items are intentionally deferred and are NOT considered incomplete bugs. T
 ## Phase 14 Status
 This section reflects the actual repository inspection regarding Production Engineering (Phase 14). Do not automatically make Phase 14 the next implementation task merely because it is the next numbered phase. The roadmap clearly separates the product backlog, production engineering, and deferred enhancements.
 
+* **Caching (Phase 14A)**: Portfolio Summary caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (Performance, Dashboard, Allocation, etc.) pending.
 * **Redis**: Already implemented as application infrastructure (available in `docker-compose.yml` and configured in `.env.example`). Not yet configured for clustered production scaling.
 * **Queues**: Already implemented as application infrastructure (Redis driver is used for jobs like `SyncMutualFundNavsJob` and `EvaluateAlertRuleJob`). No production worker management (like Horizon) yet.
 * **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.
 * **Rate Limiting**: Not implemented for production. Relies on default Laravel settings without explicit API hardening.
-* **Caching**: Partially implemented as application infrastructure (Redis available), but not heavily utilized for API response caching or complex data caching.
 * **Logging**: Not implemented for production. Uses default Laravel local file logging. No centralized logging setup.
 * **Monitoring**: Not implemented. No APM or metrics (like Datadog, Prometheus, or Sentry) configured.
 * **Error Handling**: Not implemented for production. Relies on default JSON error handling without customized production formatting/alerts.
@@ -56,3 +57,4 @@ This section reflects the actual repository inspection regarding Production Engi
 * **Production Docker**: Not implemented. Only development `docker-compose.yml` exists. No `Dockerfile.prod`.
 * **AWS Deployment**: Not implemented. No AWS scripts or Terraform.
 * **Security Hardening**: Not implemented. No explicit configuration for production security (e.g. strict CORS, WAF).
+
