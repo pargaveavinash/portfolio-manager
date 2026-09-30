@@ -72,6 +72,23 @@ class PortfolioCacheService
     }
 
     /**
+     * Get the cached rebalancing plan or calculate and cache it.
+     */
+    public function getRebalancingPlan(Portfolio $portfolio): array
+    {
+        if (!$portfolio->id) {
+            return $portfolio->rebalancingPlan();
+        }
+
+        $key = "portfolio:{$portfolio->id}:rebalancing_plan";
+        $ttl = 3600; // 1 hour
+
+        return Cache::tags(["portfolio:{$portfolio->id}"])->remember($key, $ttl, function () use ($portfolio) {
+            return $portfolio->rebalancingPlan();
+        });
+    }
+
+    /**
      * Invalidate the portfolio summary cache by Portfolio model.
      */
     public function invalidatePortfolio(Portfolio $portfolio): void

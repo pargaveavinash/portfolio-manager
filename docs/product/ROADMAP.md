@@ -48,7 +48,7 @@ These items are intentionally deferred and are NOT considered incomplete bugs. T
 ## Phase 14 Status
 This section reflects the actual repository inspection regarding Production Engineering (Phase 14). Do not automatically make Phase 14 the next implementation task merely because it is the next numbered phase. The roadmap clearly separates the product backlog, production engineering, and deferred enhancements.
 
-* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, and Dashboard caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (Rebalancing, etc.) pending.
+* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, Dashboard, and Rebalancing caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (if any) pending.
 * **Redis**: Already implemented as application infrastructure (available in `docker-compose.yml` and configured in `.env.example`). Not yet configured for clustered production scaling.
 * **Queues**: Already implemented as application infrastructure (Redis driver is used for jobs like `SyncMutualFundNavsJob` and `EvaluateAlertRuleJob`). No production worker management (like Horizon) yet.
 * **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.

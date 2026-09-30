@@ -9,9 +9,16 @@ use App\Models\Portfolio;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Resources\PortfolioResource;
+use App\Services\PortfolioCacheService;
 
 class PortfolioController extends Controller
 {
+    private PortfolioCacheService $cacheService;
+
+    public function __construct(PortfolioCacheService $cacheService)
+    {
+        $this->cacheService = $cacheService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -102,10 +109,15 @@ class PortfolioController extends Controller
         ]);
     }
 
-    public function rebalancing(Portfolio $portfolio): JsonResponse
+    public function rebalancing(Request $request, Portfolio $portfolio): JsonResponse
     {
+        abort_unless(
+            $request->user()->can('view', $portfolio),
+            404
+        );
+
         return response()->json([
-            'data' => $portfolio->rebalancingPlan(),
+            'data' => $this->cacheService->getRebalancingPlan($portfolio),
         ]);
     }
 }
