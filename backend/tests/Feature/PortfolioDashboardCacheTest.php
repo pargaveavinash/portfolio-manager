@@ -22,13 +22,13 @@ class PortfolioDashboardCacheTest extends TestCase
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test Portfolio', 'base_currency' => 'INR']);
 
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard";
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard";
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
         $response->assertStatus(200);
 
-        $cachedData = Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey);
+        $cachedData = Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey);
         $this->assertNotNull($cachedData);
         
         $this->assertEquals($response->json('data'), $cachedData);
@@ -39,11 +39,11 @@ class PortfolioDashboardCacheTest extends TestCase
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test Portfolio', 'base_currency' => 'INR']);
 
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard";
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard";
         
         // Populate cache with dummy data
         $dummyData = ['dummy' => 'dashboard_data'];
-        Cache::tags(["portfolio:{$portfolio->id}"])->put($cacheKey, $dummyData, 3600);
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->put($cacheKey, $dummyData, 3600);
 
         DB::enableQueryLog();
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
@@ -68,7 +68,7 @@ class PortfolioDashboardCacheTest extends TestCase
         ]);
         
         // 1. Clear Cache
-        Cache::tags(["portfolio:{$portfolio->id}"])->flush();
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->flush();
         
         // 2. Uncached request
         $response1 = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
@@ -92,11 +92,11 @@ class PortfolioDashboardCacheTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio1->id}/dashboard");
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio2->id}/dashboard");
 
-        $cacheKey1 = "portfolio:{$portfolio1->id}:dashboard";
-        $cacheKey2 = "portfolio:{$portfolio2->id}:dashboard";
+        $cacheKey1 = "{portfolio:{$portfolio1->id}}:dashboard";
+        $cacheKey2 = "{portfolio:{$portfolio2->id}}:dashboard";
 
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
 
         // Invalidate P1
         $portfolio1->holdings()->create([
@@ -104,8 +104,8 @@ class PortfolioDashboardCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
     }
 
     public function test_unauthorized_user_cannot_access_another_portfolios_cached_dashboard()
@@ -133,8 +133,8 @@ class PortfolioDashboardCacheTest extends TestCase
         ]);
 
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $holding->transactions()->create([
             'portfolio_id' => $portfolio->id,
@@ -145,7 +145,7 @@ class PortfolioDashboardCacheTest extends TestCase
             'transaction_date' => now()
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_holding_creation_invalidates_dashboard_cache()
@@ -154,15 +154,15 @@ class PortfolioDashboardCacheTest extends TestCase
         $portfolio = $user->portfolios()->create(['name' => 'Test Portfolio', 'base_currency' => 'INR']);
 
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->holdings()->create([
             'symbol' => 'TCS', 'name' => 'TCS', 'asset_type' => 'stock', 'currency' => 'INR',
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_portfolio_allocation_creation_invalidates_dashboard_cache()
@@ -171,15 +171,15 @@ class PortfolioDashboardCacheTest extends TestCase
         $portfolio = $user->portfolios()->create(['name' => 'Test Portfolio', 'base_currency' => 'INR']);
 
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard");
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->allocationTargets()->create([
             'symbol' => 'TCS',
             'target_percentage' => 100.0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     // Dashboard Trends Tests
@@ -193,13 +193,13 @@ class PortfolioDashboardCacheTest extends TestCase
             'valuation_date' => '2023-01-01', 
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard_trends:all:all";
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard_trends:all:all";
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard/trends");
         $response->assertStatus(200);
 
-        $cachedData = Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey);
+        $cachedData = Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey);
         $this->assertNotNull($cachedData);
         $this->assertEquals($response->json('data'), $cachedData);
     }
@@ -209,10 +209,10 @@ class PortfolioDashboardCacheTest extends TestCase
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test Portfolio', 'base_currency' => 'INR']);
 
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard_trends:all:all";
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard_trends:all:all";
         
         $dummyData = ['trends' => ['dummy_trend_data']];
-        Cache::tags(["portfolio:{$portfolio->id}"])->put($cacheKey, $dummyData, 3600);
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->put($cacheKey, $dummyData, 3600);
 
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard/trends");
         $response->assertStatus(200);
@@ -228,11 +228,11 @@ class PortfolioDashboardCacheTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard/trends?from=2023-01-01&to=2023-12-31")->assertStatus(200);
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard/trends?from=2023-06-01&to=2023-12-31")->assertStatus(200);
 
-        $cacheKey1 = "portfolio:{$portfolio->id}:dashboard_trends:2023-01-01:2023-12-31";
-        $cacheKey2 = "portfolio:{$portfolio->id}:dashboard_trends:2023-06-01:2023-12-31";
+        $cacheKey1 = "{portfolio:{$portfolio->id}}:dashboard_trends:2023-01-01:2023-12-31";
+        $cacheKey2 = "{portfolio:{$portfolio->id}}:dashboard_trends:2023-06-01:2023-12-31";
 
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey2));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey2));
     }
 
     public function test_missing_date_parameters_handled_deterministically()
@@ -242,8 +242,8 @@ class PortfolioDashboardCacheTest extends TestCase
 
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/dashboard/trends?from=2023-01-01")->assertStatus(200);
         
-        $cacheKey = "portfolio:{$portfolio->id}:dashboard_trends:2023-01-01:all";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:dashboard_trends:2023-01-01:all";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_trend_cache_isolation()
@@ -255,11 +255,11 @@ class PortfolioDashboardCacheTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio1->id}/dashboard/trends");
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio2->id}/dashboard/trends");
 
-        $cacheKey1 = "portfolio:{$portfolio1->id}:dashboard_trends:all:all";
-        $cacheKey2 = "portfolio:{$portfolio2->id}:dashboard_trends:all:all";
+        $cacheKey1 = "{portfolio:{$portfolio1->id}}:dashboard_trends:all:all";
+        $cacheKey2 = "{portfolio:{$portfolio2->id}}:dashboard_trends:all:all";
 
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
 
         // Mutate P1 cache
         $portfolio1->holdings()->create([
@@ -267,7 +267,7 @@ class PortfolioDashboardCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
     }
 }

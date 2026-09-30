@@ -23,9 +23,9 @@ class PortfolioPerformanceCacheTest extends TestCase
             'base_currency' => 'INR',
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:performance:currentInvestedCost";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:currentInvestedCost";
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         // Call method directly
         $cost = $portfolio->currentInvestedCost();
@@ -33,7 +33,7 @@ class PortfolioPerformanceCacheTest extends TestCase
         $this->assertEquals(0.0, $cost);
 
         // Assert cache is populated
-        $cachedValue = Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey);
+        $cachedValue = Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey);
         $this->assertNotNull($cachedValue);
         $this->assertEquals(0.0, $cachedValue);
     }
@@ -44,14 +44,14 @@ class PortfolioPerformanceCacheTest extends TestCase
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
 
         // Set fake cache value
-        $cacheKey = "portfolio:{$portfolio->id}:performance:currentInvestedCost";
-        Cache::tags(["portfolio:{$portfolio->id}"])->put($cacheKey, 999.99, 3600);
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:currentInvestedCost";
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->put($cacheKey, 999.99, 3600);
 
         // Because it reads from cache, it should return 999.99
         $this->assertEquals(999.99, $portfolio->currentInvestedCost());
         
         // Even if we change the cache in redis, the array memoization should still return 999.99
-        Cache::tags(["portfolio:{$portfolio->id}"])->put($cacheKey, 111.11, 3600);
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->put($cacheKey, 111.11, 3600);
         $this->assertEquals(999.99, $portfolio->currentInvestedCost());
     }
 
@@ -68,17 +68,17 @@ class PortfolioPerformanceCacheTest extends TestCase
     {
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
-        $cacheKey = "portfolio:{$portfolio->id}:performance:currentInvestedCost";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:currentInvestedCost";
 
         $portfolio->currentInvestedCost();
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->holdings()->create([
             'symbol' => 'RELIANCE', 'name' => 'Reliance', 'asset_type' => 'stock', 'currency' => 'INR',
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_holding_update_invalidates_cache(): void
@@ -90,13 +90,13 @@ class PortfolioPerformanceCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:performance:currentInvestedCost";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:currentInvestedCost";
         $portfolio->currentInvestedCost();
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $holding->update(['quantity' => 10]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_holding_deletion_and_restoration_invalidates_cache(): void
@@ -108,39 +108,39 @@ class PortfolioPerformanceCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:performance:currentInvestedCost";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:currentInvestedCost";
         $portfolio->currentInvestedCost();
         
         $holding->delete();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->refresh(); // Clear array cache for next test step
         $portfolio->currentInvestedCost();
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $holding->restore();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
         
         $portfolio->refresh();
         $portfolio->currentInvestedCost();
         $holding->forceDelete();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_cashtransaction_creation_invalidates_cache(): void
     {
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
-        $cacheKey = "portfolio:{$portfolio->id}:performance:cashBalance";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:cashBalance";
 
         $portfolio->cashBalance();
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->cashTransactions()->create([
             'type' => 'DEPOSIT', 'amount' => 1000, 'currency' => 'INR', 'transaction_date' => now()
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_cashtransaction_update_invalidates_cache(): void
@@ -151,13 +151,13 @@ class PortfolioPerformanceCacheTest extends TestCase
             'type' => 'DEPOSIT', 'amount' => 1000, 'currency' => 'INR', 'transaction_date' => now()
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:performance:cashBalance";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:cashBalance";
         $portfolio->cashBalance();
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $tx->update(['amount' => 2000]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_cashtransaction_deletion_and_restoration_invalidates_cache(): void
@@ -168,22 +168,22 @@ class PortfolioPerformanceCacheTest extends TestCase
             'type' => 'DEPOSIT', 'amount' => 1000, 'currency' => 'INR', 'transaction_date' => now()
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:performance:cashBalance";
+        $cacheKey = "{portfolio:{$portfolio->id}}:performance:cashBalance";
         $portfolio->cashBalance();
         
         $tx->delete();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $portfolio->refresh();
         $portfolio->cashBalance();
         
         $tx->restore();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
         
         $portfolio->refresh();
         $portfolio->cashBalance();
         $tx->forceDelete();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_cache_isolation_between_two_portfolios(): void
@@ -195,11 +195,11 @@ class PortfolioPerformanceCacheTest extends TestCase
         $portfolio1->currentInvestedCost();
         $portfolio2->currentInvestedCost();
 
-        $cacheKey1 = "portfolio:{$portfolio1->id}:performance:currentInvestedCost";
-        $cacheKey2 = "portfolio:{$portfolio2->id}:performance:currentInvestedCost";
+        $cacheKey1 = "{portfolio:{$portfolio1->id}}:performance:currentInvestedCost";
+        $cacheKey2 = "{portfolio:{$portfolio2->id}}:performance:currentInvestedCost";
 
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
 
         // Mutate P1
         $portfolio1->holdings()->create([
@@ -207,7 +207,7 @@ class PortfolioPerformanceCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
     }
 }

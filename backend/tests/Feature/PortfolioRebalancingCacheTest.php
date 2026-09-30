@@ -23,13 +23,13 @@ class PortfolioRebalancingCacheTest extends TestCase
             'target_percentage' => 100.0,
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
         $response->assertStatus(200);
 
-        $cachedData = Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey);
+        $cachedData = Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey);
         $this->assertNotNull($cachedData);
         $this->assertEquals($response->json('data'), $cachedData);
     }
@@ -39,7 +39,7 @@ class PortfolioRebalancingCacheTest extends TestCase
         $user = User::factory()->create();
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
 
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
         
         $dummyData = [
             [
@@ -52,7 +52,7 @@ class PortfolioRebalancingCacheTest extends TestCase
             ]
         ];
         
-        Cache::tags(["portfolio:{$portfolio->id}"])->put($cacheKey, $dummyData, 3600);
+        Cache::tags(["{portfolio:{$portfolio->id}}"])->put($cacheKey, $dummyData, 3600);
 
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
         $response->assertStatus(200);
@@ -74,7 +74,7 @@ class PortfolioRebalancingCacheTest extends TestCase
         $response = $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
         $response->assertStatus(200);
 
-        $cachedResult = Cache::tags(["portfolio:{$portfolio->id}"])->get("portfolio:{$portfolio->id}:rebalancing_plan");
+        $cachedResult = Cache::tags(["{portfolio:{$portfolio->id}}"])->get("{portfolio:{$portfolio->id}}:rebalancing_plan");
         
         // Strictly match serialized json_encode/decode output with original uncached method return
         $this->assertEquals($uncachedResult, $cachedResult);
@@ -90,9 +90,9 @@ class PortfolioRebalancingCacheTest extends TestCase
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $holding->transactions()->create([
             'portfolio_id' => $portfolio->id,
@@ -102,7 +102,7 @@ class PortfolioRebalancingCacheTest extends TestCase
             'transaction_date' => now(),
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_portfolio_allocation_mutation_invalidates_rebalancing_cache(): void
@@ -111,25 +111,25 @@ class PortfolioRebalancingCacheTest extends TestCase
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
         
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $allocation = $portfolio->allocationTargets()->create([
             'symbol' => 'TCS',
             'target_percentage' => 50.0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $allocation->update(['target_percentage' => 60.0]);
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
         
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
         $allocation->delete();
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_holding_mutation_invalidates_rebalancing_cache(): void
@@ -138,15 +138,15 @@ class PortfolioRebalancingCacheTest extends TestCase
         $portfolio = $user->portfolios()->create(['name' => 'Test', 'base_currency' => 'INR']);
         
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
 
         $holding = $portfolio->holdings()->create([
             'symbol' => 'TCS', 'name' => 'TCS', 'asset_type' => 'stock', 'currency' => 'INR',
             'quantity' => 0, 'average_price' => 0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_rebalancing_cache_isolation_between_two_portfolios(): void
@@ -158,11 +158,11 @@ class PortfolioRebalancingCacheTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio1->id}/rebalancing");
         $this->actingAs($user)->getJson("/api/v1/portfolios/{$portfolio2->id}/rebalancing");
 
-        $cacheKey1 = "portfolio:{$portfolio1->id}:rebalancing_plan";
-        $cacheKey2 = "portfolio:{$portfolio2->id}:rebalancing_plan";
+        $cacheKey1 = "{portfolio:{$portfolio1->id}}:rebalancing_plan";
+        $cacheKey2 = "{portfolio:{$portfolio2->id}}:rebalancing_plan";
 
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
 
         // Mutate P1
         $portfolio1->allocationTargets()->create([
@@ -170,8 +170,8 @@ class PortfolioRebalancingCacheTest extends TestCase
             'target_percentage' => 100.0
         ]);
 
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio1->id}"])->get($cacheKey1));
-        $this->assertNotNull(Cache::tags(["portfolio:{$portfolio2->id}"])->get($cacheKey2));
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio1->id}}"])->get($cacheKey1));
+        $this->assertNotNull(Cache::tags(["{portfolio:{$portfolio2->id}}"])->get($cacheKey2));
     }
 
     public function test_existing_authorization_is_preserved_for_rebalancing(): void
@@ -184,8 +184,8 @@ class PortfolioRebalancingCacheTest extends TestCase
         $response = $this->actingAs($user2)->getJson("/api/v1/portfolios/{$portfolio->id}/rebalancing");
         $response->assertStatus(404);
 
-        $cacheKey = "portfolio:{$portfolio->id}:rebalancing_plan";
-        $this->assertNull(Cache::tags(["portfolio:{$portfolio->id}"])->get($cacheKey));
+        $cacheKey = "{portfolio:{$portfolio->id}}:rebalancing_plan";
+        $this->assertNull(Cache::tags(["{portfolio:{$portfolio->id}}"])->get($cacheKey));
     }
 
     public function test_unsaved_portfolio_instances_remain_safe(): void

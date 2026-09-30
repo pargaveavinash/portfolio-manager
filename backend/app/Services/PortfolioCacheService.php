@@ -15,10 +15,10 @@ class PortfolioCacheService
      */
     public function getSummary(Portfolio $portfolio): array
     {
-        $key = "portfolio:{$portfolio->id}:summary";
+        $key = "{portfolio:{$portfolio->id}}:summary";
         $ttl = 3600; // 1 hour
 
-        return Cache::tags(["portfolio:{$portfolio->id}"])->remember($key, $ttl, function () use ($portfolio) {
+        return Cache::tags(["{portfolio:{$portfolio->id}}"])->remember($key, $ttl, function () use ($portfolio) {
             return (new PortfolioSummaryResource($portfolio))->resolve();
         });
     }
@@ -28,10 +28,10 @@ class PortfolioCacheService
      */
     public function getDashboard(Portfolio $portfolio): array
     {
-        $key = "portfolio:{$portfolio->id}:dashboard";
+        $key = "{portfolio:{$portfolio->id}}:dashboard";
         $ttl = 3600; // 1 hour
 
-        return Cache::tags(["portfolio:{$portfolio->id}"])->remember($key, $ttl, function () use ($portfolio) {
+        return Cache::tags(["{portfolio:{$portfolio->id}}"])->remember($key, $ttl, function () use ($portfolio) {
             $portfolio->loadMissing([
                 'holdings.transactions',
                 'cashTransactions',
@@ -49,10 +49,10 @@ class PortfolioCacheService
     {
         $fromKey = empty($from) ? 'all' : $from;
         $toKey = empty($to) ? 'all' : $to;
-        $key = "portfolio:{$portfolio->id}:dashboard_trends:{$fromKey}:{$toKey}";
+        $key = "{portfolio:{$portfolio->id}}:dashboard_trends:{$fromKey}:{$toKey}";
         $ttl = 3600; // 1 hour
 
-        return Cache::tags(["portfolio:{$portfolio->id}"])->remember($key, $ttl, function () use ($portfolio, $from, $to) {
+        return Cache::tags(["{portfolio:{$portfolio->id}}"])->remember($key, $ttl, function () use ($portfolio, $from, $to) {
             $query = $portfolio->snapshots()->orderBy('valuation_date', 'asc');
 
             if (!empty($from)) {
@@ -80,10 +80,10 @@ class PortfolioCacheService
             return $portfolio->rebalancingPlan();
         }
 
-        $key = "portfolio:{$portfolio->id}:rebalancing_plan";
+        $key = "{portfolio:{$portfolio->id}}:rebalancing_plan";
         $ttl = 3600; // 1 hour
 
-        return Cache::tags(["portfolio:{$portfolio->id}"])->remember($key, $ttl, function () use ($portfolio) {
+        return Cache::tags(["{portfolio:{$portfolio->id}}"])->remember($key, $ttl, function () use ($portfolio) {
             return $portfolio->rebalancingPlan();
         });
     }
@@ -101,6 +101,6 @@ class PortfolioCacheService
      */
     public function invalidatePortfolioById(int|string $portfolioId): void
     {
-        Cache::tags(["portfolio:{$portfolioId}"])->flush();
+        Cache::tags(["{portfolio:{$portfolioId}}"])->flush();
     }
 }

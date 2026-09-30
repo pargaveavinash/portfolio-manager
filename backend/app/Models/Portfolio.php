@@ -68,10 +68,10 @@ class Portfolio extends Model
             return $this->memoizedCalculations[$key] = $callback();
         }
 
-        $cacheKey = "portfolio:{$this->id}:performance:{$key}";
+        $cacheKey = "{portfolio:{$this->id}}:performance:{$key}";
         $ttl = 3600;
 
-        return $this->memoizedCalculations[$key] = Cache::tags(["portfolio:{$this->id}"])
+        return $this->memoizedCalculations[$key] = Cache::tags(["{portfolio:{$this->id}}"])
             ->remember($cacheKey, $ttl, $callback);
     }
 
