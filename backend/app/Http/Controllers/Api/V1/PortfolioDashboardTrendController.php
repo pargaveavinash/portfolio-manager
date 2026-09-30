@@ -25,22 +25,15 @@ class PortfolioDashboardTrendController extends Controller
             'to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
         ]);
 
-        $query = $portfolio->snapshots()->orderBy('valuation_date', 'asc');
-
-        if (!empty($validated['from'])) {
-            $query->whereDate('valuation_date', '>=', $validated['from']);
-        }
-
-        if (!empty($validated['to'])) {
-            $query->whereDate('valuation_date', '<=', $validated['to']);
-        }
-
-        $snapshots = $query->get();
+        $cacheService = app(\App\Services\PortfolioCacheService::class);
+        $trendsData = $cacheService->getDashboardTrends(
+            $portfolio,
+            $validated['from'] ?? null,
+            $validated['to'] ?? null
+        );
 
         return response()->json([
-            'data' => [
-                'trends' => PortfolioDashboardTrendResource::collection($snapshots),
-            ],
+            'data' => $trendsData,
         ]);
     }
 }

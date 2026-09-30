@@ -29,7 +29,9 @@ The following phases have been fully implemented, tested, and merged into the ma
 * **Phase 14A — Application Caching**: 
   - Portfolio Summary caching implemented (14A.1)
   - Portfolio Performance caching implemented (14A.2)
-  - Remaining caching slices (Allocation, Dashboard, Rebalancing, etc.) still pending
+  - Asset Allocation caching implemented (14A.3)
+  - Dashboard caching implemented (14A.4)
+  - Remaining caching slices (Rebalancing, etc.) still pending
 
 ### Pending
 * **Phase 14 — Production Engineering**: Preparing the application for real-world scaling, deployment, and performance.
@@ -46,7 +48,7 @@ These items are intentionally deferred and are NOT considered incomplete bugs. T
 ## Phase 14 Status
 This section reflects the actual repository inspection regarding Production Engineering (Phase 14). Do not automatically make Phase 14 the next implementation task merely because it is the next numbered phase. The roadmap clearly separates the product backlog, production engineering, and deferred enhancements.
 
-* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, and Asset Allocation caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (Dashboard, etc.) pending.
+* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, and Dashboard caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (Rebalancing, etc.) pending.
 * **Redis**: Already implemented as application infrastructure (available in `docker-compose.yml` and configured in `.env.example`). Not yet configured for clustered production scaling.
 * **Queues**: Already implemented as application infrastructure (Redis driver is used for jobs like `SyncMutualFundNavsJob` and `EvaluateAlertRuleJob`). No production worker management (like Horizon) yet.
 * **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.

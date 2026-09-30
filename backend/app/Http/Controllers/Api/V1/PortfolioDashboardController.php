@@ -20,12 +20,9 @@ class PortfolioDashboardController extends Controller
             404
         );
 
-        $portfolio->loadMissing([
-            'holdings.transactions',
-            'cashTransactions',
-            'allocationTargets',
-        ]);
+        $cacheService = app(\App\Services\PortfolioCacheService::class);
+        $dashboardData = $cacheService->getDashboard($portfolio);
 
-        return new PortfolioDashboardResource($portfolio);
+        return response()->json(['data' => $dashboardData]);
     }
 }
