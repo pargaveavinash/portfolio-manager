@@ -6,8 +6,11 @@ use App\Models\Portfolio;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Observers\PortfolioAllocationObserver;
 
 #[Fillable(['portfolio_id', 'symbol', 'target_percentage'])]
+#[ObservedBy(PortfolioAllocationObserver::class)]
 class PortfolioAllocation extends Model
 {
     protected static function booted(): void

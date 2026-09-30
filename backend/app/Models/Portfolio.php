@@ -186,14 +186,18 @@ class Portfolio extends Model
 
     public function allocationPercentage(): float
     {
-        return (float) $this->allocationTargets()
-            ->sum('target_percentage');
+        return $this->memoizeCalculation('allocationPercentage', function () {
+            return (float) $this->allocationTargets()
+                ->sum('target_percentage');
+        });
     }
 
     public function allocationPercentageTotal(): float
     {
-        return (float) $this->allocationTargets()
-            ->sum('target_percentage');
+        return $this->memoizeCalculation('allocationPercentageTotal', function () {
+            return (float) $this->allocationTargets()
+                ->sum('target_percentage');
+        });
     }
 
     public function hasValidAllocation(): bool
@@ -203,109 +207,119 @@ class Portfolio extends Model
 
     public function currentAllocationPercentage(string $symbol): float
     {
-        $this->holdings->loadMissing('transactions');
-        $holdings = $this->holdings;
+        return $this->memoizeCalculation("currentAllocationPercentage_{$symbol}", function () use ($symbol) {
+            $this->holdings->loadMissing('transactions');
+            $holdings = $this->holdings;
 
-        $totalMarketValue = $holdings->sum(
-            fn(Holding $holding): float => $holding->currentMarketValue()
-        );
+            $totalMarketValue = $holdings->sum(
+                fn(Holding $holding): float => $holding->currentMarketValue()
+            );
 
-        if ($totalMarketValue <= 0) {
-            return 0.0;
-        }
+            if ($totalMarketValue <= 0) {
+                return 0.0;
+            }
 
-        $holding = $holdings->firstWhere('symbol', $symbol);
+            $holding = $holdings->firstWhere('symbol', $symbol);
 
-        if (!$holding) {
-            return 0.0;
-        }
+            if (!$holding) {
+                return 0.0;
+            }
 
-        return ($holding->currentMarketValue() / $totalMarketValue) * 100;
+            return ($holding->currentMarketValue() / $totalMarketValue) * 100;
+        });
     }
 
     public function allocationDeviation(string $symbol): float
     {
-        $target = $this->allocationTargets()
-            ->where('symbol', $symbol)
-            ->first();
+        return $this->memoizeCalculation("allocationDeviation_{$symbol}", function () use ($symbol) {
+            $target = $this->allocationTargets()
+                ->where('symbol', $symbol)
+                ->first();
 
-        if (!$target) {
-            return 0.0;
-        }
+            if (!$target) {
+                return 0.0;
+            }
 
-        return $this->currentAllocationPercentage($symbol)
-            - (float) $target->target_percentage;
+            return $this->currentAllocationPercentage($symbol)
+                - (float) $target->target_percentage;
+        });
     }
 
     public function rebalancingAction(string $symbol): string
     {
-        $deviation = $this->allocationDeviation($symbol);
+        return $this->memoizeCalculation("rebalancingAction_{$symbol}", function () use ($symbol) {
+            $deviation = $this->allocationDeviation($symbol);
 
-        $tolerance = 5.0;
+            $tolerance = 5.0;
 
-        if (abs($deviation) <= $tolerance + 0.000001) {
-            return 'HOLD';
-        }
+            if (abs($deviation) <= $tolerance + 0.000001) {
+                return 'HOLD';
+            }
 
-        if ($deviation < 0) {
-            return 'BUY';
-        }
+            if ($deviation < 0) {
+                return 'BUY';
+            }
 
-        return 'SELL';
+            return 'SELL';
+        });
     }
 
     public function rebalancingAmount(string $symbol): float
     {
-        $target = $this->allocationTargets()
-            ->where('symbol', $symbol)
-            ->first();
+        return $this->memoizeCalculation("rebalancingAmount_{$symbol}", function () use ($symbol) {
+            $target = $this->allocationTargets()
+                ->where('symbol', $symbol)
+                ->first();
 
-        if (!$target) {
-            return 0.0;
-        }
+            if (!$target) {
+                return 0.0;
+            }
 
-        $this->holdings->loadMissing('transactions');
-        $holdings = $this->holdings;
+            $this->holdings->loadMissing('transactions');
+            $holdings = $this->holdings;
 
-        $totalMarketValue = $holdings->sum(
-            fn(Holding $holding): float => $holding->currentMarketValue()
-        );
+            $totalMarketValue = $holdings->sum(
+                fn(Holding $holding): float => $holding->currentMarketValue()
+            );
 
-        if ($totalMarketValue <= 0) {
-            return 0.0;
-        }
+            if ($totalMarketValue <= 0) {
+                return 0.0;
+            }
 
-        $holding = $holdings->firstWhere('symbol', $symbol);
+            $holding = $holdings->firstWhere('symbol', $symbol);
 
-        $currentMarketValue = $holding
-            ? $holding->currentMarketValue()
-            : 0.0;
+            $currentMarketValue = $holding
+                ? $holding->currentMarketValue()
+                : 0.0;
 
-        $targetMarketValue =
-            $totalMarketValue * ((float) $target->target_percentage / 100);
+            $targetMarketValue =
+                $totalMarketValue * ((float) $target->target_percentage / 100);
 
-        return abs($targetMarketValue - $currentMarketValue);
+            return abs($targetMarketValue - $currentMarketValue);
+        });
     }
 
     public function rebalancingPlan(): array
     {
-        return $this->allocationTargets()
-            ->orderBy('id')
-            ->get()
-            ->map(function (PortfolioAllocation $target): array {
-                $symbol = $target->symbol;
+        return $this->memoizeCalculation('rebalancingPlan', function () {
+            return $this->allocationTargets()
+                ->orderBy('id')
+                ->get()
+                ->map(function (PortfolioAllocation $target): array {
+                    $symbol = $target->symbol;
 
-                return [
-                    'symbol'    => $symbol,
-                    'target'    => (float) $target->target_percentage,
-                    'current'   => $this->currentAllocationPercentage($symbol),
-                    'deviation' => $this->allocationDeviation($symbol),
-                    'action'    => $this->rebalancingAction($symbol),
-                    'amount'    => $this->rebalancingAmount($symbol),
-                ];
-            })
-            ->values()
-            ->all();
+                    return [
+                        'symbol'    => $symbol,
+                        'target'    => (float) $target->target_percentage,
+                        'current'   => $this->currentAllocationPercentage($symbol),
+                        'deviation' => $this->allocationDeviation($symbol),
+                        'action'    => $this->rebalancingAction($symbol),
+                        'amount'    => $this->rebalancingAmount($symbol),
+                    ];
+                })
+                ->values()
+                ->all();
+        });
     }
 
     public function cashBalance(): float
