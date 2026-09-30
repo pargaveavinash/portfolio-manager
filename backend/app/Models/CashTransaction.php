@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Observers\CashTransactionObserver;
 
 #[Fillable([
     'portfolio_id',
@@ -20,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'portfolio_id',
     'deleted_at',
 ])]
+#[ObservedBy(CashTransactionObserver::class)]
 class CashTransaction extends Model
 {
     use SoftDeletes;

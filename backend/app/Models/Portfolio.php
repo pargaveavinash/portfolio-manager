@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 #[Fillable(['name', 'description', 'base_currency'])]
 class Portfolio extends Model
@@ -63,7 +64,15 @@ class Portfolio extends Model
             return $this->memoizedCalculations[$key];
         }
 
-        return $this->memoizedCalculations[$key] = $callback();
+        if (!$this->id) {
+            return $this->memoizedCalculations[$key] = $callback();
+        }
+
+        $cacheKey = "portfolio:{$this->id}:performance:{$key}";
+        $ttl = 3600;
+
+        return $this->memoizedCalculations[$key] = Cache::tags(["portfolio:{$this->id}"])
+            ->remember($cacheKey, $ttl, $callback);
     }
 
     public function currentInvestedCost(): float

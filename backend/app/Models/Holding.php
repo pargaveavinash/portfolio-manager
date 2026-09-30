@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Observers\HoldingObserver;
 
 #[Fillable([
     'symbol',
@@ -23,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'portfolio_id',
     'deleted_at',
 ])]
+#[ObservedBy(HoldingObserver::class)]
 class Holding extends Model
 {
     use HasFactory, SoftDeletes;
