@@ -50,7 +50,7 @@ This section reflects the actual repository inspection regarding Production Engi
 
 * **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, Dashboard, and Rebalancing caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (if any) pending.
 * **Redis**: Configured for Redis Clustered Production Scaling (via `REDIS_CLUSTER_MODE`), incorporating cache tag/key hash-tagging to ensure cluster affinity.
-* **Queues**: Already implemented as application infrastructure (Redis driver is used for jobs like `SyncMutualFundNavsJob` and `EvaluateAlertRuleJob`). No production worker management (like Horizon) yet.
+* **Queues**: Application infrastructure implemented (Redis driver). Production worker management implemented (Laravel Horizon installed and configured, explicit authorization gate added, and dedicated Docker worker service defined).
 * **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.
 * **Rate Limiting**: Not implemented for production. Relies on default Laravel settings without explicit API hardening.
 * **Logging**: Not implemented for production. Uses default Laravel local file logging. No centralized logging setup.

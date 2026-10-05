@@ -12,6 +12,7 @@ RUN apt-get update \
         bcmath \
         intl \
         mbstring \
+        pcntl \
         pdo_pgsql \
         zip \
     && pecl install redis-6.3.0 \
