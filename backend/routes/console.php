@@ -13,12 +13,18 @@ Schedule::command('portfolio:snapshot-backfill', [
     '--end-date' => Carbon::yesterday('Asia/Kolkata')->toDateString()
 ])
     ->timezone('Asia/Kolkata')
-    ->dailyAt('02:00');
+    ->dailyAt('02:00')
+    ->withoutOverlapping()
+    ->onOneServer();
 
 Schedule::command('mutual-funds:sync-navs')
     ->timezone('Asia/Kolkata')
-    ->dailyAt('23:00');
+    ->dailyAt('23:00')
+    ->withoutOverlapping()
+    ->onOneServer();
 
 Schedule::command('alerts:evaluate')
     ->timezone('Asia/Kolkata')
-    ->dailyAt('09:00');
+    ->dailyAt('09:00')
+    ->withoutOverlapping()
+    ->onOneServer();
