@@ -14,115 +14,118 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
-Route::post('/v1/auth/register', [AuthController::class, 'register']);
-Route::post('/v1/auth/login', [AuthController::class, 'login']);
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/v1/auth/me', [AuthController::class, 'me']);
-    Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
-
-    Route::get('/v1/mutual-funds/search', [\App\Http\Controllers\Api\V1\MutualFundController::class, 'search']);
-
-    Route::apiResource('v1/portfolios', PortfolioController::class);
-    Route::post(
-        '/v1/portfolios/{portfolio}/holdings',
-        [HoldingController::class, 'store']
-    );
-    Route::get(
-        '/v1/portfolios/{portfolio}/holdings',
-        [HoldingController::class, 'index']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/holdings/{holding}',
-        [HoldingController::class, 'show']
-    );
-
-    Route::put(
-        '/v1/portfolios/{portfolio}/holdings/{holding}',
-        [HoldingController::class, 'update']
-    );
-
-    Route::delete(
-        '/v1/portfolios/{portfolio}/holdings/{holding}',
-        [HoldingController::class, 'destroy']
-    );
-
-    Route::post(
-        '/v1/portfolios/{portfolio}/holdings/{holding}/transactions',
-        [TransactionController::class, 'store']
-    );
-    Route::get(
-        '/v1/portfolios/{portfolio}/transactions',
-        [TransactionController::class, 'index']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/transactions/{transaction}',
-        [TransactionController::class, 'show']
-    );
-
-    Route::put(
-        '/v1/portfolios/{portfolio}/transactions/{transaction}',
-        [TransactionController::class, 'update']
-    );
-
-    Route::delete(
-        '/v1/portfolios/{portfolio}/transactions/{transaction}',
-        [TransactionController::class, 'destroy']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/rebalancing',
-        [PortfolioController::class, 'rebalancing']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/summary',
-        [PortfolioSummaryController::class, 'show']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/dashboard',
-        [\App\Http\Controllers\Api\V1\PortfolioDashboardController::class, 'show']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/dashboard/trends',
-        [\App\Http\Controllers\Api\V1\PortfolioDashboardTrendController::class, 'show']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/history',
-        [\App\Http\Controllers\Api\V1\PortfolioHistoryController::class, 'index']
-    );
-
-    Route::get(
-        '/v1/portfolios/{portfolio}/sip-plan',
-        [SipPlanController::class, 'show']
-    );
-
-    Route::apiResource(
-        'v1/portfolios.sip-plans',
-        \App\Http\Controllers\Api\V1\PortfolioSipPlanController::class
-    )->shallow();
-
-    Route::post(
-        '/v1/portfolios/{portfolio}/cash-transactions',
-        [CashTransactionController::class, 'store']
-    );
-
-    // Phase 13 - Alerts
-    Route::get('/v1/alerts/rules', [AlertRuleController::class, 'index']);
-    Route::post('/v1/alerts/rules', [AlertRuleController::class, 'store']);
-    Route::get('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'show']);
-    Route::put('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'update']);
-    Route::patch('/v1/alerts/rules/{rule}/toggle', [AlertRuleController::class, 'toggle']);
-    Route::delete('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'destroy']);
-    
-    Route::get('/v1/alerts/notifications', [AlertNotificationController::class, 'index']);
-    Route::patch('/v1/alerts/notifications/{notification}/read', [AlertNotificationController::class, 'markAsRead']);
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/v1/auth/register', [AuthController::class, 'register']);
+    Route::post('/v1/auth/login', [AuthController::class, 'login']);
 });
 
-Route::get('/v1/health', HealthController::class);
-Route::get('/v1/health/ready', [HealthController::class, 'ready']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('throttle:api_expensive')->group(function () {
+        Route::get('/v1/mutual-funds/search', [\App\Http\Controllers\Api\V1\MutualFundController::class, 'search']);
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/rebalancing',
+            [PortfolioController::class, 'rebalancing']
+        );
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/summary',
+            [PortfolioSummaryController::class, 'show']
+        );
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/dashboard',
+            [\App\Http\Controllers\Api\V1\PortfolioDashboardController::class, 'show']
+        );
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/dashboard/trends',
+            [\App\Http\Controllers\Api\V1\PortfolioDashboardTrendController::class, 'show']
+        );
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/sip-plan',
+            [SipPlanController::class, 'show']
+        );
+    });
+
+    Route::middleware('throttle:api')->group(function () {
+        Route::get('/v1/auth/me', [AuthController::class, 'me']);
+        Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
+
+        Route::apiResource('v1/portfolios', PortfolioController::class);
+
+        Route::post(
+            '/v1/portfolios/{portfolio}/holdings',
+            [HoldingController::class, 'store']
+        );
+        Route::get(
+            '/v1/portfolios/{portfolio}/holdings',
+            [HoldingController::class, 'index']
+        );
+        Route::get(
+            '/v1/portfolios/{portfolio}/holdings/{holding}',
+            [HoldingController::class, 'show']
+        );
+        Route::put(
+            '/v1/portfolios/{portfolio}/holdings/{holding}',
+            [HoldingController::class, 'update']
+        );
+        Route::delete(
+            '/v1/portfolios/{portfolio}/holdings/{holding}',
+            [HoldingController::class, 'destroy']
+        );
+
+        Route::post(
+            '/v1/portfolios/{portfolio}/holdings/{holding}/transactions',
+            [TransactionController::class, 'store']
+        );
+        Route::get(
+            '/v1/portfolios/{portfolio}/transactions',
+            [TransactionController::class, 'index']
+        );
+        Route::get(
+            '/v1/portfolios/{portfolio}/transactions/{transaction}',
+            [TransactionController::class, 'show']
+        );
+        Route::put(
+            '/v1/portfolios/{portfolio}/transactions/{transaction}',
+            [TransactionController::class, 'update']
+        );
+        Route::delete(
+            '/v1/portfolios/{portfolio}/transactions/{transaction}',
+            [TransactionController::class, 'destroy']
+        );
+
+        Route::get(
+            '/v1/portfolios/{portfolio}/history',
+            [\App\Http\Controllers\Api\V1\PortfolioHistoryController::class, 'index']
+        );
+
+        Route::apiResource(
+            'v1/portfolios.sip-plans',
+            \App\Http\Controllers\Api\V1\PortfolioSipPlanController::class
+        )->shallow();
+
+        Route::post(
+            '/v1/portfolios/{portfolio}/cash-transactions',
+            [CashTransactionController::class, 'store']
+        );
+
+        // Phase 13 - Alerts
+        Route::get('/v1/alerts/rules', [AlertRuleController::class, 'index']);
+        Route::post('/v1/alerts/rules', [AlertRuleController::class, 'store']);
+        Route::get('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'show']);
+        Route::put('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'update']);
+        Route::patch('/v1/alerts/rules/{rule}/toggle', [AlertRuleController::class, 'toggle']);
+        Route::delete('/v1/alerts/rules/{rule}', [AlertRuleController::class, 'destroy']);
+
+        Route::get('/v1/alerts/notifications', [AlertNotificationController::class, 'index']);
+        Route::patch('/v1/alerts/notifications/{notification}/read', [AlertNotificationController::class, 'markAsRead']);
+    });
+});
+
+Route::middleware('throttle:health')->group(function () {
+    Route::get('/v1/health', HealthController::class);
+    Route::get('/v1/health/ready', [HealthController::class, 'ready']);
+});

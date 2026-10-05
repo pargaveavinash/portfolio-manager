@@ -53,7 +53,7 @@ This section reflects the actual repository inspection regarding Production Engi
 * **Redis**: Configured for Redis Clustered Production Scaling (via `REDIS_CLUSTER_MODE`), incorporating cache tag/key hash-tagging to ensure cluster affinity.
 * **Queues**: Application infrastructure implemented (Redis driver). Production worker management implemented (Laravel Horizon installed and configured, explicit authorization gate added, and dedicated Docker worker service defined).
 * **Scheduled Jobs**: Application infrastructure and production cron setup complete (`routes/console.php` configured with `withoutOverlapping` and `onOneServer`, dedicated Docker `scheduler` service defined).
-* **Rate Limiting**: Not implemented for production. Relies on default Laravel settings without explicit API hardening.
+* **Rate Limiting**: Explicit API hardening implemented via named throttles (`auth`, `api`, `api_expensive`, `health`) mapped to endpoints, natively compatible with Redis Cluster.
 * **Logging**: Not implemented for production. Uses default Laravel local file logging. No centralized logging setup.
 * **Monitoring**: Not implemented. No APM or metrics (like Datadog, Prometheus, or Sentry) configured.
 * **Error Handling**: Not implemented for production. Relies on default JSON error handling without customized production formatting/alerts.
