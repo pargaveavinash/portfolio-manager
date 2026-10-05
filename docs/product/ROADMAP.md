@@ -31,7 +31,8 @@ The following phases have been fully implemented, tested, and merged into the ma
   - Portfolio Performance caching implemented (14A.2)
   - Asset Allocation caching implemented (14A.3)
   - Dashboard caching implemented (14A.4)
-  - Remaining caching slices (Rebalancing, etc.) still pending
+  - Rebalancing caching implemented (14A.5)
+  - Phase 14A Application Caching COMPLETE
 
 ### Pending
 * **Phase 14 — Production Engineering**: Preparing the application for real-world scaling, deployment, and performance.
@@ -48,7 +49,7 @@ These items are intentionally deferred and are NOT considered incomplete bugs. T
 ## Phase 14 Status
 This section reflects the actual repository inspection regarding Production Engineering (Phase 14). Do not automatically make Phase 14 the next implementation task merely because it is the next numbered phase. The roadmap clearly separates the product backlog, production engineering, and deferred enhancements.
 
-* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, Dashboard, and Rebalancing caching implemented with model-event based invalidation and portfolio isolation. Remaining slices (if any) pending.
+* **Caching (Phase 14A)**: Portfolio Summary, Portfolio Performance, Asset Allocation, Dashboard, and Rebalancing caching implemented with model-event based invalidation and portfolio isolation. All caching slices COMPLETE.
 * **Redis**: Configured for Redis Clustered Production Scaling (via `REDIS_CLUSTER_MODE`), incorporating cache tag/key hash-tagging to ensure cluster affinity.
 * **Queues**: Application infrastructure implemented (Redis driver). Production worker management implemented (Laravel Horizon installed and configured, explicit authorization gate added, and dedicated Docker worker service defined).
 * **Scheduled Jobs**: Already implemented as application infrastructure (`routes/console.php` contains scheduled tasks). No production cron setup yet.
