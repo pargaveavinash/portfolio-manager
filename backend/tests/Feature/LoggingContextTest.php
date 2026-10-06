@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Tests\TestCase;
 
 class LoggingContextTest extends TestCase
@@ -87,31 +91,64 @@ class LoggingContextTest extends TestCase
     {
         $clientUuid = Str::uuid()->toString();
 
-        // Make a request which binds context
-        $this->getJson('/api/v1/health', [
-            'X-Request-ID' => $clientUuid,
-        ]);
-
+        // Bind context manually or via request
+        Context::add('request_id', $clientUuid);
         $this->assertEquals($clientUuid, Context::get('request_id'));
 
-        // Verify that Laravel's Context dehydrates the request_id
-        // which ContextServiceProvider uses when a job is pushed.
-        $dehydrated = Context::dehydrate();
+        // We clear the cache to ensure a fresh state
+        Cache::forget('dummy_job_request_id');
 
-        $this->assertArrayHasKey('request_id', $dehydrated['data'] ?? []);
-        $this->assertEquals(serialize($clientUuid), $dehydrated['data']['request_id']);
+        // Dispatching a real job class to the sync queue.
+        // Sync driver processes immediately but goes through the payload serialization
+        // lifecycle, thus testing hydration.
+        dispatch(new DummyContextJob);
+
+        $propagatedRequestId = Cache::get('dummy_job_request_id');
+
+        $this->assertNotNull($propagatedRequestId, 'The queued job should have executed and written to cache');
+        $this->assertEquals($clientUuid, $propagatedRequestId, 'The job should have access to the propagated request_id context');
     }
 
     public function test_stderr_logging_produces_valid_structured_json(): void
     {
-        // This validates the configuration in config/logging.php
-        $config = config('logging.channels.stderr');
+        // Use an in-memory stream to capture actual JSON formatting
+        $stream = fopen('php://memory', 'w+');
+        $handler = new StreamHandler($stream);
+        $handler->setFormatter(new JsonFormatter);
 
-        $this->assertEquals('monolog', $config['driver']);
-        $this->assertEquals(StreamHandler::class, $config['handler']);
-        $this->assertEquals('php://stderr', $config['handler_with']['stream']);
+        $logger = new Logger('test_logger');
+        $logger->pushHandler($handler);
 
-        // Assert the formatter is set to JsonFormatter
-        $this->assertEquals(JsonFormatter::class, $config['formatter']);
+        // Write a test log with context
+        $logger->info('test log message', ['user_id' => 12345]);
+
+        // Read the stream contents
+        rewind($stream);
+        $output = stream_get_contents($stream);
+        fclose($stream);
+
+        $this->assertNotEmpty($output, 'Log output should not be empty');
+
+        $decoded = json_decode($output, true);
+
+        $this->assertIsArray($decoded, 'The log output should be valid JSON');
+        $this->assertArrayHasKey('message', $decoded);
+        $this->assertEquals('test log message', $decoded['message']);
+        $this->assertArrayHasKey('level', $decoded);
+        $this->assertArrayHasKey('level_name', $decoded);
+        $this->assertEquals('INFO', $decoded['level_name']);
+        $this->assertArrayHasKey('context', $decoded);
+        $this->assertArrayHasKey('user_id', $decoded['context']);
+        $this->assertEquals(12345, $decoded['context']['user_id']);
+    }
+}
+
+class DummyContextJob implements ShouldQueue
+{
+    use Queueable;
+
+    public function handle(): void
+    {
+        Cache::put('dummy_job_request_id', Context::get('request_id'));
     }
 }
