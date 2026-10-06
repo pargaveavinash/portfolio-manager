@@ -54,7 +54,7 @@ This section reflects the actual repository inspection regarding Production Engi
 * **Queues**: Application infrastructure implemented (Redis driver). Production worker management implemented (Laravel Horizon installed and configured, explicit authorization gate added, and dedicated Docker worker service defined).
 * **Scheduled Jobs**: Application infrastructure and production cron setup complete (`routes/console.php` configured with `withoutOverlapping` and `onOneServer`, dedicated Docker `scheduler` service defined).
 * **Rate Limiting**: Explicit API hardening implemented via named throttles (`auth`, `api`, `api_expensive`, `health`) mapped to endpoints, natively compatible with Redis Cluster.
-* **Logging**: Not implemented for production. Uses default Laravel local file logging. No centralized logging setup.
+* **Logging**: Implemented. Structured JSON logging to stderr configured, with Request ID context injection.
 * **Monitoring**: Not implemented. No APM or metrics (like Datadog, Prometheus, or Sentry) configured.
 * **Error Handling**: Not implemented for production. Relies on default JSON error handling without customized production formatting/alerts.
 * **CI/CD**: Not implemented. No GitHub Actions or CI/CD pipeline definitions exist.
