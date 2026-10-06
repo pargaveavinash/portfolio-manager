@@ -19,7 +19,9 @@ class PortfolioDashboardTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Portfolio $portfolio;
+
     private string $endpoint;
 
     protected function setUp(): void
@@ -43,16 +45,16 @@ class PortfolioDashboardTest extends TestCase
     public function test_user_cannot_access_another_users_dashboard()
     {
         $otherUser = User::factory()->create();
-        
+
         $response = $this->actingAs($otherUser)->getJson($this->endpoint);
-        
+
         $response->assertStatus(404);
     }
 
     public function test_empty_portfolio_returns_zero_values()
     {
         $response = $this->actingAs($this->user)->getJson($this->endpoint);
-        
+
         $response->assertStatus(200);
 
         $response->assertJson([
@@ -76,7 +78,7 @@ class PortfolioDashboardTest extends TestCase
                 ],
                 'allocation' => [],
                 'holdings' => [],
-            ]
+            ],
         ]);
     }
 
@@ -121,7 +123,7 @@ class PortfolioDashboardTest extends TestCase
             'price' => 3200, // profit of 200 per share on 5 shares = 1000 realized profit
             'transaction_date' => now()->subDays(2)->toDateString(),
         ]);
-        
+
         // Update holding to reflect current state
         $equityHolding->forceFill([
             'quantity' => 5,
@@ -161,7 +163,7 @@ class PortfolioDashboardTest extends TestCase
                         'target' => '100.000000',
                         'current' => '100.000000',
                         'deviation' => '0.000000',
-                    ]
+                    ],
                 ],
                 'holdings' => [
                     [
@@ -175,9 +177,9 @@ class PortfolioDashboardTest extends TestCase
                         'market_value' => '17500.000000',
                         'unrealized_profit_loss' => '2500.000000',
                         'unrealized_profit_loss_percentage' => '16.666667',
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ]);
 
         // Ensure action and amount are NOT in the allocation response
@@ -220,11 +222,11 @@ class PortfolioDashboardTest extends TestCase
         // No MutualFundNav record is created, so getApplicableNav will return null
 
         $response = $this->actingAs($this->user)->getJson($this->endpoint);
-        
+
         $response->assertStatus(409);
         $response->assertJsonStructure([
             'message',
-            'error'
+            'errors' => ['market_data'],
         ]);
         $this->assertEquals('Market data is temporarily unavailable for one or more holdings.', $response->json('message'));
     }
@@ -233,7 +235,7 @@ class PortfolioDashboardTest extends TestCase
     {
         // Create 2 holdings with 2 transactions each
         $this->seedHoldingsWithTransactions(2);
-        
+
         // Warm up and record queries for 2 holdings
         DB::enableQueryLog();
         $this->actingAs($this->user)->getJson($this->endpoint)->assertStatus(200);
@@ -252,7 +254,7 @@ class PortfolioDashboardTest extends TestCase
 
         // The number of queries should not grow linearly with the number of holdings
         $this->assertLessThanOrEqual(
-            $queriesWith2Holdings + 2, 
+            $queriesWith2Holdings + 2,
             $queriesWith12Holdings,
             "N+1 query pattern detected: queries grew from {$queriesWith2Holdings} to {$queriesWith12Holdings} after adding 10 holdings."
         );
@@ -264,7 +266,7 @@ class PortfolioDashboardTest extends TestCase
             $holding = Holding::forceCreate([
                 'portfolio_id' => $this->portfolio->id,
                 'asset_type' => 'EQUITY',
-                'symbol' => "SYM{$i}_" . uniqid(),
+                'symbol' => "SYM{$i}_".uniqid(),
                 'name' => "Company {$i}",
                 'currency' => 'INR',
                 'quantity' => 10,

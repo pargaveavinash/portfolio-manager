@@ -10,7 +10,9 @@ class MissingMarketDataException extends Exception
     {
         return response()->json([
             'message' => 'Market data is temporarily unavailable for one or more holdings.',
-            'error'   => $this->getMessage(),
+            'errors' => [
+                'market_data' => [$this->getMessage()],
+            ],
         ], 409);
     }
 }
